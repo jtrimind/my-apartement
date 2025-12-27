@@ -138,6 +138,50 @@ with tab1:
 
 with tab2:
     st.subheader("📅 연도별 준공 현황")
+    
+    # Fun fact section
+    if not filtered_df.empty:
+        st.markdown("### 💡 Fun fact")
+        
+        # Calculate facts
+        oldest_apt = filtered_df.loc[filtered_df['built_year'].idxmin()]
+        newest_apt = filtered_df.loc[filtered_df['built_year'].idxmax()]
+        
+        # For median, we take the one closest to the median year
+        median_year = filtered_df['built_year'].median()
+        median_apt = filtered_df.iloc[(filtered_df['built_year'] - median_year).abs().argsort()[:1]].iloc[0]
+        
+        f_col1, f_col2, f_col3 = st.columns(3)
+        
+        with f_col1:
+            st.markdown(f"""
+            <div style="background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #64748b; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <p style="margin-bottom: 5px; color: #64748b; font-size: 0.8rem; font-weight: 600;">👴 가장 오래된 아파트</p>
+                <h4 style="margin: 0; color: #1e293b;">{oldest_apt['kaptName']}</h4>
+                <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">{int(oldest_apt['built_year'])}년 준공</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with f_col2:
+            st.markdown(f"""
+            <div style="background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #0ea5e9; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <p style="margin-bottom: 5px; color: #64748b; font-size: 0.8rem; font-weight: 600;">👶 가장 새로운 아파트</p>
+                <h4 style="margin: 0; color: #1e293b;">{newest_apt['kaptName']}</h4>
+                <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">{int(newest_apt['built_year'])}년 준공</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with f_col3:
+            st.markdown(f"""
+            <div style="background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #f43f5e; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <p style="margin-bottom: 5px; color: #64748b; font-size: 0.8rem; font-weight: 600;">⚖️ 중간의 아파트</p>
+                <h4 style="margin: 0; color: #1e293b;">{median_apt['kaptName']}</h4>
+                <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">{int(median_apt['built_year'])}년 준공</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+
     # Aggregate by year
     annual_stats = filtered_df.groupby('built_year').agg({
         'kaptName': 'count',
