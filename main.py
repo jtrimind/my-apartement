@@ -208,6 +208,16 @@ if selected_districts:
 filtered_df = filtered_df[(filtered_df['built_year'] >= year_range[0]) & (filtered_df['built_year'] <= year_range[1])]
 filtered_df = filtered_df[(filtered_df['kaptdaCnt'] >= unit_range[0]) & (filtered_df['kaptdaCnt'] <= unit_range[1])]
 
+# Buy me a coffee button (Sidebar Footer)
+st.sidebar.markdown("---")
+st.sidebar.markdown("""
+<a href="https://www.buymeacoffee.com/kimbndt" target="_blank">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 145px !important;" >
+</a>
+<br><br>
+<span style="font-size: 0.8em; color: gray;">불쌍한 개발자에게 도움을!</span>
+""", unsafe_allow_html=True)
+
 # Main Dashboard
 st.title("🏢 아파트 상세 데이터 분석 대시보드")
 st.markdown("`apt_basic.csv` 및 `apt_detail.csv` 데이터를 기반으로 한 종합 시각화 리포트입니다.")
