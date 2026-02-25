@@ -132,6 +132,13 @@ def load_data():
         axis=1
     )
     
+    def get_city(addr):
+        if pd.isna(addr) or not isinstance(addr, str): return "알수없음"
+        parts = addr.split()
+        if len(parts) >= 1:
+            return parts[0]
+        return "알수없음"
+
     def get_gu(addr):
         if pd.isna(addr) or not isinstance(addr, str): return "알수없음"
         parts = addr.split()
@@ -139,6 +146,7 @@ def load_data():
             return parts[1]
         return "알수없음"
     
+    df['city'] = df['kaptAddr'].apply(get_city)
     df['district'] = df['kaptAddr'].apply(get_gu)
     
     return df
@@ -151,8 +159,18 @@ except Exception as e:
 
 # Sidebar
 st.sidebar.title("🔍 Filters")
-districts = sorted(df['district'].unique())
-selected_districts = st.sidebar.multiselect("행정구역 (구)", districts, default=None)
+
+cities = sorted(df['city'].unique())
+selected_cities = st.sidebar.multiselect("시/도", cities, default=None)
+
+# District options depend on selected cities
+if selected_cities:
+    available_districts_df = df[df['city'].isin(selected_cities)]
+else:
+    available_districts_df = df
+
+districts = sorted(available_districts_df['district'].unique())
+selected_districts = st.sidebar.multiselect("행정구역 (구/군)", districts, default=None)
 
 # Handle cases where built_year might be all NaT
 if df['built_year'].dropna().empty:
@@ -170,6 +188,8 @@ year_range = st.sidebar.slider(
 
 # Filter data
 filtered_df = df.copy()
+if selected_cities:
+    filtered_df = filtered_df[filtered_df['city'].isin(selected_cities)]
 if selected_districts:
     filtered_df = filtered_df[filtered_df['district'].isin(selected_districts)]
 filtered_df = filtered_df[(filtered_df['built_year'] >= year_range[0]) & (filtered_df['built_year'] <= year_range[1])]
