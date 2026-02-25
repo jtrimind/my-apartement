@@ -330,6 +330,12 @@ with tab1:
                 '백분위': [f"{v:.1f}%" for v in values]
             }
             st.dataframe(pd.DataFrame(pct_data), use_container_width=True, hide_index=True)
+            with st.expander("📄 원본 데이터 보기"):
+                st.markdown("선택된 아파트의 원본 데이터 상세 정보입니다.")
+                # Transpose the data to make it easier to read column by column
+                selected_df = selected.to_frame(name='값').reset_index().rename(columns={'index': '항목'})
+                st.dataframe(selected_df, use_container_width=True, hide_index=True)
+
     else:
         st.info("아파트 단지명을 입력하면 백분위 레이더 차트가 표시됩니다.")
 
@@ -441,11 +447,6 @@ with tab3:
         st.plotly_chart(fig_units, use_container_width=True)
     else:
         st.info("세대수 데이터를 표시할 수 없습니다.")
-with st.expander("📄 원본 데이터 보기"):
-    cols_to_show = ['kaptName', 'kaptAddr', 'codeAptNm', 'built_year', 'kaptdaCnt', 'kaptBcompany']
-    available_cols = [c for c in cols_to_show if c in filtered_df.columns]
-    st.dataframe(filtered_df[available_cols])
-
 st.markdown("""
 ---
 Created by Antigravity 🚀
