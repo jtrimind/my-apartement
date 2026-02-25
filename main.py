@@ -186,6 +186,19 @@ year_range = st.sidebar.slider(
     (min_year, max_year)
 )
 
+if df['kaptdaCnt'].dropna().empty:
+    min_unit, max_unit = 0, 5000
+else:
+    min_unit = int(df['kaptdaCnt'].dropna().min())
+    max_unit = int(df['kaptdaCnt'].dropna().max())
+
+unit_range = st.sidebar.slider(
+    "세대 수 범위",
+    min_unit,
+    max_unit,
+    (min_unit, max_unit)
+)
+
 # Filter data
 filtered_df = df.copy()
 if selected_cities:
@@ -193,6 +206,7 @@ if selected_cities:
 if selected_districts:
     filtered_df = filtered_df[filtered_df['district'].isin(selected_districts)]
 filtered_df = filtered_df[(filtered_df['built_year'] >= year_range[0]) & (filtered_df['built_year'] <= year_range[1])]
+filtered_df = filtered_df[(filtered_df['kaptdaCnt'] >= unit_range[0]) & (filtered_df['kaptdaCnt'] <= unit_range[1])]
 
 # Main Dashboard
 st.title("🏢 아파트 상세 데이터 분석 대시보드")
