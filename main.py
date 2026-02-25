@@ -196,7 +196,7 @@ with col3:
 st.markdown("---")
 
 # Row 2: Charts
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🎯 아파트 비교", "🏠 아파트 유형", "📅 연도별 준공 현황", "🏗️ 건물 정보", "🏢 단지 규모"])
+tab1, tab2 = st.tabs(["🎯 아파트 비교", "📅 연도별 준공 현황"])
 
 with tab1:
     st.subheader("🎯 아파트 백분위 비교")
@@ -300,21 +300,6 @@ with tab1:
         st.info("아파트 단지명을 입력하면 백분위 레이더 차트가 표시됩니다.")
 
 with tab2:
-    st.subheader("🏠 아파트 유형 분포")
-    if not filtered_df.empty and 'codeAptNm' in filtered_df.columns:
-        type_counts = filtered_df['codeAptNm'].value_counts()
-        fig_type = px.pie(
-            values=type_counts.values, 
-            names=type_counts.index, 
-            hole=0.4,
-            color_discrete_sequence=px.colors.qualitative.Safe,
-            template="plotly_white"
-        )
-        st.plotly_chart(fig_type, use_container_width=True)
-    else:
-        st.info("표시할 아파트 유형 데이터가 없습니다.")
-
-with tab3:
     st.subheader("📅 연도별 준공 현황")
     
     if not filtered_df.empty and not filtered_df['built_year'].isna().all():
@@ -389,52 +374,6 @@ with tab3:
         st.plotly_chart(fig_year, use_container_width=True)
     else:
         st.info("준공 연도 데이터가 없습니다.")
-
-with tab4:
-    c1, c2 = st.columns(2)
-    
-    with c1:
-        st.subheader("🔥 난방 방식 분포")
-        if not filtered_df.empty and 'codeHeatNm' in filtered_df.columns:
-            heat_counts = filtered_df['codeHeatNm'].value_counts()
-            fig_heat = px.bar(
-                x=heat_counts.index, 
-                y=heat_counts.values,
-                labels={'x': '난방 방식', 'y': '아파트 수'},
-                color=heat_counts.index,
-                template="plotly_white",
-                color_discrete_sequence=px.colors.qualitative.Pastel
-            )
-            st.plotly_chart(fig_heat, use_container_width=True)
-        
-    with c2:
-        st.subheader("⬆️ 최고 층수 분포")
-        if not filtered_df.empty:
-            fig_floor = px.histogram(
-                filtered_df, 
-                x="kaptTopFloor", 
-                nbins=30,
-                template="plotly_white",
-                color_discrete_sequence=['#6366f1']
-            )
-            fig_floor.update_layout(xaxis_title="층수", yaxis_title="건물 수")
-            st.plotly_chart(fig_floor, use_container_width=True)
-
-with tab5:
-    st.subheader("🏗️ 주요 건설사별 아파트 수 (Top 20)")
-    if not filtered_df.empty and 'kaptBcompany' in filtered_df.columns:
-        builder_counts = filtered_df['kaptBcompany'].value_counts().head(20)
-        fig_builder = px.bar(
-            y=builder_counts.index, 
-            x=builder_counts.values,
-            orientation='h',
-            labels={'x': '아파트 수', 'y': '건설사'},
-            template="plotly_white",
-            color=builder_counts.values,
-            color_continuous_scale='Blues'
-        )
-        fig_builder.update_layout(yaxis={'categoryorder':'total ascending'})
-        st.plotly_chart(fig_builder, use_container_width=True)
 
 # Data Table
 with st.expander("📄 원본 데이터 보기"):
