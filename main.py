@@ -419,6 +419,49 @@ with tab2:
 with tab3:
     st.subheader("🏢 단지 규모 분포 (세대수별 아파트 수)")
     if not filtered_df.empty and 'kaptdaCnt' in filtered_df.columns:
+        valid_df = filtered_df[filtered_df['kaptdaCnt'] > 0]
+        
+        if not valid_df.empty:
+            st.markdown("### 💡 Fun fact")
+            
+            # Calculate facts
+            largest_apt = valid_df.loc[valid_df['kaptdaCnt'].idxmax()]
+            smallest_apt = valid_df.loc[valid_df['kaptdaCnt'].idxmin()]
+            
+            median_units = valid_df['kaptdaCnt'].median()
+            median_apt = valid_df.iloc[(valid_df['kaptdaCnt'] - median_units).abs().argsort()[:1]].iloc[0]
+            
+            u_col1, u_col2, u_col3 = st.columns(3)
+            
+            with u_col1:
+                st.markdown(f"""
+                <div style="background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #10b981; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <p style="margin-bottom: 5px; color: #64748b; font-size: 0.8rem; font-weight: 600;">👑 가장 큰 단지</p>
+                    <h4 style="margin: 0; color: #1e293b;">{largest_apt['kaptName']}</h4>
+                    <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">{int(largest_apt['kaptdaCnt']):,} 세대</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            with u_col2:
+                st.markdown(f"""
+                <div style="background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #f59e0b; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <p style="margin-bottom: 5px; color: #64748b; font-size: 0.8rem; font-weight: 600;">🐣 가장 작은 단지</p>
+                    <h4 style="margin: 0; color: #1e293b;">{smallest_apt['kaptName']}</h4>
+                    <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">{int(smallest_apt['kaptdaCnt']):,} 세대</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            with u_col3:
+                st.markdown(f"""
+                <div style="background-color: #ffffff; padding: 15px; border-radius: 10px; border-left: 5px solid #6366f1; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <p style="margin-bottom: 5px; color: #64748b; font-size: 0.8rem; font-weight: 600;">⚖️ 중간 규모 단지</p>
+                    <h4 style="margin: 0; color: #1e293b;">{median_apt['kaptName']}</h4>
+                    <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">{int(median_apt['kaptdaCnt']):,} 세대</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+
         # Create bins for better visualization of unit counts
         bins = [0, 200, 500, 1000, 2000, 3000, max(filtered_df['kaptdaCnt'].max(), 3000)+1]
         labels = ['200세대 이하', '200~500세대', '500~1000세대', '1000~2000세대', '2000~3000세대', '3000세대 이상']
