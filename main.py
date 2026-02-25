@@ -185,6 +185,14 @@ def load_data():
         agg_price['max_price'] = agg_price['max'] / 100000000.0
         agg_price.drop(columns=['min', 'max'], inplace=True)
         df = pd.merge(df, agg_price, on='kaptCode', how='left')
+        
+        # area-price pairs for linked filtering
+        df_ap_cln = df_p.dropna(subset=['전용면적', '공시가격']).copy()
+        df_ap_cln['price_억원'] = df_ap_cln['공시가격'] / 100000000.0
+        agg_ap = df_ap_cln.groupby('kaptCode').apply(
+            lambda x: list(zip(x['전용면적'], x['price_억원']))
+        ).reset_index(name='area_price_list')
+        df = pd.merge(df, agg_ap, on='kaptCode', how='left')
     except Exception:
         pass # Leave areas/price columns out if file not found
     
@@ -325,14 +333,41 @@ if selected_districts:
 filtered_df = filtered_df[(filtered_df['built_year'] >= year_range[0]) & (filtered_df['built_year'] <= year_range[1])]
 filtered_df = filtered_df[(filtered_df['kaptdaCnt'] >= unit_range[0]) & (filtered_df['kaptdaCnt'] <= unit_range[1])]
 
-if 'areas' in df.columns and (area_range[0] > min_a or area_range[1] < max_a):
-    def has_area_in_range(areas, min_v, max_v):
-        if not isinstance(areas, list): return False
-        return any(min_v <= a <= max_v for a in areas)
-    filtered_df = filtered_df[filtered_df['areas'].apply(lambda x: has_area_in_range(x, area_range[0], area_range[1]))]
+is_area_filtered = 'areas' in df.columns and (area_range[0] > min_a or area_range[1] < max_a)
+is_price_filtered = 'min_price' in df.columns and (price_range[0] > min_p or price_range[1] < max_p)
 
-if 'min_price' in df.columns and (price_range[0] > min_p or price_range[1] < max_p):
-    filtered_df = filtered_df[~((filtered_df['max_price'] < price_range[0]) | (filtered_df['min_price'] > price_range[1]))]
+if is_area_filtered or is_price_filtered:
+    def check_conditions(row):
+        a_ok_overall = True
+        p_ok_overall = True
+        
+        # If both filters applied, check combinations
+        if is_area_filtered and is_price_filtered and 'area_price_list' in row and isinstance(row['area_price_list'], list):
+            ap_list = row['area_price_list']
+            if len(ap_list) > 0:
+                for area, price in ap_list:
+                    if (area_range[0] <= area <= area_range[1]) and (price_range[0] <= price <= price_range[1]):
+                        return True
+                return False
+
+        if is_area_filtered:
+            areas = row.get('areas')
+            if isinstance(areas, list):
+                a_ok_overall = any(area_range[0] <= a <= area_range[1] for a in areas)
+            else:
+                a_ok_overall = False
+                
+        if is_price_filtered:
+            min_p_val = row.get('min_price')
+            max_p_val = row.get('max_price')
+            if pd.notna(min_p_val) and pd.notna(max_p_val):
+                p_ok_overall = not (max_p_val < price_range[0] or min_p_val > price_range[1])
+            else:
+                p_ok_overall = False
+                
+        return a_ok_overall and p_ok_overall
+
+    filtered_df = filtered_df[filtered_df.apply(check_conditions, axis=1)]
 
 if selected_subway_lines and 'subwayLine' in df.columns:
     def has_selected_subway(subway_str, selected_lines):
