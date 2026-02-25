@@ -122,21 +122,7 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
 
 #### 탭별 시각화
 
-**🏠 탭 1 — 아파트 유형**
-- 아파트 유형(일반/주상복합 등) 분포를 도넛 차트로 표시
-
-**📅 탭 2 — 연도별 준공 현황**
-- Fun Fact 카드: 가장 오래된 아파트 / 가장 새로운 아파트 / 중간 연식 아파트
-- 이중 축 차트: 연도별 준공 아파트 수(꺾은선) + 세대 수(막대)
-
-**🏗️ 탭 3 — 건물 정보**
-- 난방 방식(지역난방/개별난방 등) 분포 막대 차트
-- 최고 층수 분포 히스토그램
-
-**🏢 탭 4 — 단지 규모**
-- 건설사별 아파트 수 Top 20 수평 막대 차트
-
-**🎯 탭 5 — 아파트 비교 레이더**
+**🎯 탭 1 — 아파트 비교**
 - 단지명 텍스트 검색으로 특정 아파트 선택
 - 선택한 아파트의 주요 지표가 전체 데이터 대비 몇 번째 백분위(percentile)에 위치하는지 레이더 차트로 시각화
 - 레이더 차트 축 항목:
@@ -145,8 +131,25 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
   | 연식 (신축도) | 준공연도 기준 — 새로울수록 높은 백분위 |
   | 세대 수 | 단지 세대 수 백분위 |
   | 세대당 주차대수 | (지상+지하 주차대수) ÷ 세대수 백분위 |
+  | 브랜드 점수 | 시공사/브랜드 가치 점수 백분위 (`apt_brand.csv` 연동) |
+  | 역세권 점수 | 지하철역 도보 소요시간 기반 점수 백분위 |
 - 각 축의 값은 0~100 사이의 백분위 점수로 표시
-- 선택 아파트 정보(단지명, 주소, 준공연도, 세대수)를 카드형 요약으로 함께 표시
+- 선택 아파트 정보(단지명, 주소, 준공연도, 세대수, 브랜드 점수, 역세권)를 카드형 요약으로 함께 표시
+- 각 지표별 실제 값과 백분위를 보여주는 상세 데이터 표 제공
+
+**🏠 탭 2 — 아파트 유형**
+- 아파트 유형(일반/주상복합 등) 분포를 도넛 차트로 표시
+
+**📅 탭 3 — 연도별 준공 현황**
+- Fun Fact 카드: 가장 오래된 아파트 / 가장 새로운 아파트 / 중간 연식 아파트
+- 이중 축 차트: 연도별 준공 아파트 수(꺾은선) + 세대 수(막대)
+
+**🏗️ 탭 4 — 건물 정보**
+- 난방 방식(지역난방/개별난방 등) 분포 막대 차트
+- 최고 층수 분포 히스토그램
+
+**🏢 탭 5 — 단지 규모**
+- 건설사별 아파트 수 Top 20 수평 막대 차트
 
 #### 원본 데이터 조회
 - `📄 원본 데이터 보기` 확장 패널에서 필터된 데이터 테이블 조회 가능
@@ -155,6 +158,14 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
 - 주요 아파트 브랜드별 선호도/가치 점수를 저장한 기준 데이터
 - **필드 구성**: `brand_name` (브랜드명), `score` (점수, 1~5점)
 - 단지명(`kaptName`)에 해당 브랜드명이 포함되어 있을 경우 해당 점수를 부여 (기본값: 2점)
+
+#### 역세권 점수 (Station Area Score)
+- `apt_detail.csv`의 `kaptdWtimesub` (지하철역 소요시간) 필드를 기반으로 점수화
+  - '5분이내': 5점
+  - '5~10분이내': 4점
+  - '10~15분이내': 3점
+  - '15~20분이내': 2점
+  - 기타/정보없음: 1점
 
 ---
 
@@ -185,6 +196,13 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
  apt_brand.csv  ───→ (브랜드 점수 매핑)
                           │
                           ▼
+### Brand & Station Area Score Implementation
+- Created [apt_brand.csv](file:///c:/Users/trimi/my-apartement/apt_brand.csv) with defined scores for major Korean apartment brands.
+- Updated [main.py](file:///c:/Users/trimi/my-apartement/main.py) to:
+    - Automatically assign brand scores by matching `kaptName` with the brand list.
+    - Implement "**Station Area Score**" (역세권 점수) by mapping subway proximity (`kaptdWtimesub`) to 1-5 points.
+    - Include both Brand and Station Area scores as new axes in the radar chart.
+    - Display scores in the apartment information card and percentile table.
          main.py (Streamlit 대시보드)
 ```
 
