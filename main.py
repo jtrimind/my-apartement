@@ -196,7 +196,7 @@ with col3:
 st.markdown("---")
 
 # Row 2: Charts
-tab1, tab2 = st.tabs(["🎯 아파트 비교", "📅 연도별 준공 현황"])
+tab1, tab2, tab3 = st.tabs(["🎯 아파트 비교", "📅 연도별 준공 현황", "🏢 단지 규모 현황"])
 
 with tab1:
     st.subheader("🎯 아파트 백분위 비교")
@@ -376,6 +376,37 @@ with tab2:
         st.info("준공 연도 데이터가 없습니다.")
 
 # Data Table
+with tab3:
+    st.subheader("🏢 단지 규모 분포 (세대수별 아파트 수)")
+    if not filtered_df.empty and 'kaptdaCnt' in filtered_df.columns:
+        # Create bins for better visualization of unit counts
+        bins = [0, 200, 500, 1000, 2000, 3000, max(filtered_df['kaptdaCnt'].max(), 3000)+1]
+        labels = ['200세대 이하', '200~500세대', '500~1000세대', '1000~2000세대', '2000~3000세대', '3000세대 이상']
+        
+        filtered_df['unit_group'] = pd.cut(filtered_df['kaptdaCnt'], bins=bins, labels=labels, right=False)
+        unit_counts = filtered_df['unit_group'].value_counts().reindex(labels)
+        
+        fig_units = px.bar(
+            x=unit_counts.index,
+            y=unit_counts.values,
+            labels={'x': '세대수 구간', 'y': '아파트 수 (단지)'},
+            template="plotly_white",
+            color_discrete_sequence=['#10b981']
+        )
+        
+        fig_units.update_layout(
+            xaxis_title="세대수 구간",
+            yaxis_title="아파트 수",
+            bargap=0.2,
+            margin=dict(t=40, b=40, l=40, r=40)
+        )
+        
+        # Add labels on top of bars
+        fig_units.update_traces(texttemplate='%{y}', textposition='outside')
+        
+        st.plotly_chart(fig_units, use_container_width=True)
+    else:
+        st.info("세대수 데이터를 표시할 수 없습니다.")
 with st.expander("📄 원본 데이터 보기"):
     cols_to_show = ['kaptName', 'kaptAddr', 'codeAptNm', 'built_year', 'kaptdaCnt', 'kaptBcompany']
     available_cols = [c for c in cols_to_show if c in filtered_df.columns]
