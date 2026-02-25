@@ -18,24 +18,88 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
 - 결과를 `apt_list.csv`로 저장 (약 21,900개 단지)
 
 #### `get_detail.py` — 아파트 상세 정보 수집
-- 공공데이터포털 `AptBasisInfoServiceV4/getAphusBassInfoV4` API 호출
-- `apt_list.csv`의 각 단지 코드를 기준으로 상세 정보 1건씩 수집
-- **이미 수집된 단지는 자동으로 건너뜀** (중복 방지, 재실행 안전)
+- 공공데이터포털 API를 사용하여 아파트의 기본 정보와 상세 정보를 모두 수집
+- **기본 정보 수집**: `AptBasisInfoServiceV4/getAphusBassInfoV4` API 호출
+  - 결과를 `apt_basic.csv`에 저장
+- **상세 정보 수집**: `AptBasisInfoServiceV4/getAphusDtlInfoV4` API 호출
+  - 결과를 `apt_detail.csv`에 저장
+- `apt_list.csv`의 각 단지 코드를 기준으로 수집
+- **이미 수집된 단지는 자동으로 건너뜀** (각 파일별로 개별 체크)
 - `--limit N` 옵션으로 수집 개수 제한 가능 (테스트용)
-- 결과를 `apt_detail.csv`에 누적 저장
 
-수집되는 상세 필드:
-| 필드 | 설명 |
-|------|------|
+수집되는 기본 필드 (`apt_basic.csv`):
+| 필드명 | 설명 |
+|--------|------|
+| `kaptCode` | 단지코드 |
 | `kaptName` | 단지명 |
 | `kaptAddr` | 주소 |
-| `kaptUsedate` | 사용승인일 (준공일) |
-| `kaptdaCnt` | 세대 수 |
-| `kaptTarea` | 단지 총 면적 |
-| `kaptTopFloor` | 최고 층수 |
-| `codeAptNm` | 아파트 유형 (일반/주상복합 등) |
-| `codeHeatNm` | 난방 방식 |
-| `kaptBcompany` | 시공사(건설사) |
+| `codeSaleNm` | 분양형태 |
+| `codeHeatNm` | 난방방식 |
+| `kaptTarea` | 관리비부과면적 |
+| `kaptDongCnt` | 동수 |
+| `kaptdaCnt` | 세대수 |
+| `kaptBcompany` | 시공사 |
+| `kaptAcompany` | 시행사 |
+| `kaptTel` | 단지전화번호 |
+| `kaptUrl` | 단지홈페이지 |
+| `codeAptNm` | 아파트 종류 |
+| `doroJuso` | 도로명주소 |
+| `codeMgrNm` | 관리방식 |
+| `codeHallNm` | 복도유형 |
+| `kaptUsedate` | 사용승인일 |
+| `kaptFax` | 단지팩스번호 |
+| `hoCnt` | 호수 |
+| `kaptMarea` | 주거전용면적합계 |
+| `kaptMparea60` | 전용면적별 세대현황(60㎡ 이하) |
+| `kaptMparea85` | 전용면적별 세대현황(60㎡ ~ 85㎡ 이하) |
+| `kaptMparea135` | 전용면적별 세대현황(85㎡ ~ 135㎡ 이하) |
+| `kaptMparea136` | 전용면적별 세대현황(135㎡ 초과) |
+| `privArea` | 주거전용면적 |
+| `bjdCode` | 법정동코드 |
+| `kaptTopFloor` | 최고층 |
+| `ktownFlrNo` | 건수(?) |
+| `kaptBaseFloor` | 최저층 |
+| `kaptdEcntp` | 승강기대수 |
+| `zipcode` | 우편번호 |
+
+수집되는 상세 필드 (`apt_detail.csv`):
+| 필드명 (API 키) | 설명 |
+|----------------|------|
+| `kaptCode` | 단지코드 |
+| `codeMgr` | 일반관리방식 |
+| `kaptMgrCnt` | 일반관리인원 |
+| `kaptCcompany` | 일반관리 계약업체 |
+| `codeSec` | 경비관리방식 |
+| `kaptdScnt` | 경비관리인원 |
+| `kaptdSecCom` | 경비관리 계약업체 |
+| `codeClean` | 청소관리방식 |
+| `kaptdClcnt` | 청소관리인원 |
+| `codeGarbage` | 음식물처리방법 |
+| `codeDisinf` | 소독관리방식 |
+| `kaptdDcnt` | 소독관리 연간소독횟수 |
+| `disposalType` | 소독방법 |
+| `codeStr` | 건물구조 |
+| `kaptdEcapa` | 수전용량 |
+| `codeEcon` | 세대전기계약방식 |
+| `codeEmgr` | 전기안전관리자법정선임여부 |
+| `codeFalarm` | 화재수신반방식 |
+| `codeWsupply` | 급수방식 |
+| `codeElev` | 승강기관리형태 |
+| `kaptdEcnt` | 승강기대수 |
+| `kaptdPcnt` | 주차대수(지상) |
+| `kaptdPcntu` | 주차대수(지하) |
+| `codeNet` | 주차관제·홈네트워크 |
+| `kaptdCccnt` | CCTV대수 |
+| `welfareFacility` | 부대·복리시설 |
+| `kaptdWtimebus` | 버스정류장 거리 |
+| `subwayLine` | 지하철호선 |
+| `subwayStation` | 지하철역명 |
+| `kaptdWtimesub` | 지하철역 거리 |
+| `convenientFacility` | 편의시설 |
+| `educationFacility` | 교육시설 |
+| `groundElChargerCnt` | 지상 전기차 충전기 대수 |
+| `undergroundElChargerCnt` | 지하 전기차 충전기 대수 |
+| `useYn` | 사용여부 |
 
 ---
 
@@ -72,6 +136,18 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
 **🏢 탭 4 — 단지 규모**
 - 건설사별 아파트 수 Top 20 수평 막대 차트
 
+**🎯 탭 5 — 아파트 비교 레이더**
+- 단지명 텍스트 검색으로 특정 아파트 선택
+- 선택한 아파트의 주요 지표가 전체 데이터 대비 몇 번째 백분위(percentile)에 위치하는지 레이더 차트로 시각화
+- 레이더 차트 축 항목:
+  | 축 | 설명 |
+  |----|------|
+  | 연식 (신축도) | 준공연도 기준 — 새로울수록 높은 백분위 |
+  | 세대 수 | 단지 세대 수 백분위 |
+  | 세대당 주차대수 | (지상+지하 주차대수) ÷ 세대수 백분위 |
+- 각 축의 값은 0~100 사이의 백분위 점수로 표시
+- 선택 아파트 정보(단지명, 주소, 준공연도, 세대수)를 카드형 요약으로 함께 표시
+
 #### 원본 데이터 조회
 - `📄 원본 데이터 보기` 확장 패널에서 필터된 데이터 테이블 조회 가능
 
@@ -99,7 +175,8 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
  get_list.py  ──→  apt_list.csv   (~21,900 단지)
                          │
                          ▼
- get_detail.py ──→ apt_detail.csv (상세 정보)
+  get_detail.py ──┬→ apt_basic.csv  (기본 정보)
+                 └→ apt_detail.csv (상세 정보)
                          │
                          ▼
         main.py (Streamlit 대시보드)
