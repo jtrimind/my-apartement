@@ -87,14 +87,14 @@ def load_data():
 
     def calculate_brand_score(name):
         if pd.isna(name) or not isinstance(name, str):
-            return 2
+            return 1
         # Check for longest match first to handle e.g. '디에이치' vs '디에이치 아너힐즈' (if we had longer brands)
         # Sort brands by length descending
         sorted_brands = sorted(brand_dict.keys(), key=len, reverse=True)
         for brand in sorted_brands:
             if brand in name:
                 return brand_dict[brand]
-        return 2 # Default score
+        return 1 # Default score
 
     df['brand_score'] = df['kaptName'].apply(calculate_brand_score)
 
