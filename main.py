@@ -98,16 +98,34 @@ def load_data():
 
     df['brand_score'] = df['kaptName'].apply(calculate_brand_score)
 
-    def calculate_station_score(time_str):
+    try:
+        sub_df = pd.read_csv('subway_score.csv', encoding='utf-8')
+        subway_weights = dict(zip(sub_df['subwayLine'], sub_df['weight']))
+    except:
+        subway_weights = {}
+
+    def calculate_station_score(row):
+        time_str = row.get('kaptdWtimesub', None)
+        subways = str(row.get('subwayLine', ''))
+
         mapping = {
             '5분이내': 5,
             '5~10분이내': 4,
             '10~15분이내': 3,
             '15~20분이내': 2
         }
-        return mapping.get(time_str, 1)
+        base_score = mapping.get(time_str, 1) if pd.notna(time_str) else 1
 
-    df['station_score'] = df['kaptdWtimesub'].apply(calculate_station_score) if 'kaptdWtimesub' in df.columns else 1
+        multiplier = 1.0
+        if subways and subways != 'nan':
+            lines = [l.strip() for l in subways.split(',')]
+            weights = [subway_weights.get(l, 1.0) for l in lines]
+            if weights:
+                multiplier = max(weights)
+        
+        return base_score * multiplier
+
+    df['station_score'] = df.apply(calculate_station_score, axis=1)
 
     # Ensure required columns exist
     required_columns = [
@@ -285,6 +303,19 @@ price_range = st.sidebar.slider(
     step=0.1
 )
 
+st.sidebar.markdown("---")
+# Subway Line Filter
+if 'subwayLine' in df.columns:
+    all_subway_lines = set()
+    for item in df['subwayLine'].dropna():
+        for line in str(item).split(','):
+            all_subway_lines.add(line.strip())
+    sorted_subway_lines = sorted(list(all_subway_lines))
+else:
+    sorted_subway_lines = []
+
+selected_subway_lines = st.sidebar.multiselect("지하철 호선", sorted_subway_lines, default=None)
+
 # Filter data
 filtered_df = df.copy()
 if selected_cities:
@@ -302,6 +333,15 @@ if 'areas' in df.columns and (area_range[0] > min_a or area_range[1] < max_a):
 
 if 'min_price' in df.columns and (price_range[0] > min_p or price_range[1] < max_p):
     filtered_df = filtered_df[~((filtered_df['max_price'] < price_range[0]) | (filtered_df['min_price'] > price_range[1]))]
+
+if selected_subway_lines and 'subwayLine' in df.columns:
+    def has_selected_subway(subway_str, selected_lines):
+        if pd.isna(subway_str) or not isinstance(subway_str, str): return False
+        apartment_lines = [l.strip() for l in subway_str.split(',')]
+        # Check if any selected line is in the apartment's connected lines
+        return any(line in apartment_lines for line in selected_lines)
+    
+    filtered_df = filtered_df[filtered_df['subwayLine'].apply(lambda x: has_selected_subway(x, selected_subway_lines))]
 
 # Buy me a coffee button (Sidebar Footer)
 st.sidebar.markdown("---")
@@ -368,7 +408,12 @@ with tab1:
             built_year_display = int(selected['built_year']) if not pd.isna(selected['built_year']) else '정보없음'
             unit_display = int(selected['kaptdaCnt']) if selected['kaptdaCnt'] > 0 else '정보없음'
             unit_display_str = f"{unit_display:,}세대" if isinstance(unit_display, int) else str(unit_display)
-            station_display = selected['kaptdWtimesub'] if not pd.isna(selected['kaptdWtimesub']) else '정보없음'
+            
+            station_time = selected['kaptdWtimesub'] if not pd.isna(selected['kaptdWtimesub']) else '정보없음'
+            subway_line_str = str(selected['subwayLine']) if 'subwayLine' in selected and pd.notna(selected['subwayLine']) else ""
+            if subway_line_str.lower() == 'nan' or not subway_line_str.strip():
+                subway_line_str = ""
+            station_display = f"{station_time} ({subway_line_str})" if subway_line_str else station_time
 
             areas_str = "정보없음"
             if 'areas' in selected and isinstance(selected['areas'], list) and len(selected['areas']) > 0:
