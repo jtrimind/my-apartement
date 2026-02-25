@@ -27,6 +27,12 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
 - **이미 수집된 단지는 자동으로 건너뜀** (각 파일별로 개별 체크)
 - `--limit N` 옵션으로 수집 개수 제한 가능 (테스트용)
 
+#### `extract_price.py` — 공시가격 정보 추출
+- **데이터 소스**: [국토교통부_주택 공시가격 정보](https://www.data.go.kr/data/3073746/fileData.do)
+- 원본 대용량 CSV (약 3.4GB)를 `duckdb`를 이용해 메모리 효율적으로 처리
+- `apt_basic.csv`의 주소(`doroJuso`) 및 법정동코드(`bjdCode`)를 기준으로 매핑
+- 필터링된 결과를 `apt_price_mapped.csv`로 저장하여 용량 최적화 (약 280MB)
+
 수집되는 기본 필드 (`apt_basic.csv`):
 | 필드명 | 설명 |
 |--------|------|
@@ -177,7 +183,7 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
 | 데이터 처리 | `pandas` |
 | 시각화 | `plotly` |
 | 대시보드 | `streamlit` |
-| 데이터 소스 | 국토교통부 공공데이터포털 API |
+| 데이터 소스 | 공공데이터포털 API (아파트 정보), 국토교통부 (주택 공시가격 정보) |
 
 ---
 
@@ -193,6 +199,7 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
   get_detail.py ──┬→ apt_basic.csv   (기본 정보)
                  └→ apt_detail.csv  (상세 정보)
  apt_brand.csv  ───→ (브랜드 점수 매핑)
+ 주택공시가격(CSV) ─→ extract_price.py ──→ apt_price_mapped.csv
                           │
                           ▼
 ### Brand & Station Area Score Implementation
