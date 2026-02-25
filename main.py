@@ -67,7 +67,6 @@ def load_data():
     # Merge on kaptCode
     if not df_basic.empty and not df_detail.empty:
         df = pd.merge(df_basic, df_detail, on='kaptCode', how='outer', suffixes=('', '_detail'))
-        # If kaptName exists in both, prefer the basic one and drop the detail one if it exists
         if 'kaptName_detail' in df.columns:
             df['kaptName'] = df['kaptName'].fillna(df['kaptName_detail'])
             df.drop(columns=['kaptName_detail'], inplace=True)
@@ -79,7 +78,27 @@ def load_data():
     if df.empty:
         return pd.DataFrame(columns=['kaptCode', 'kaptName', 'district', 'built_year'])
 
-    # Ensure required columns exist for the dashboard logic
+    # Load brand scores
+    try:
+        df_brand = pd.read_csv('apt_brand.csv')
+        brand_dict = dict(zip(df_brand['brand_name'], df_brand['score']))
+    except Exception:
+        brand_dict = {}
+
+    def calculate_brand_score(name):
+        if pd.isna(name) or not isinstance(name, str):
+            return 2
+        # Check for longest match first to handle e.g. '디에이치' vs '디에이치 아너힐즈' (if we had longer brands)
+        # Sort brands by length descending
+        sorted_brands = sorted(brand_dict.keys(), key=len, reverse=True)
+        for brand in sorted_brands:
+            if brand in name:
+                return brand_dict[brand]
+        return 2 # Default score
+
+    df['brand_score'] = df['kaptName'].apply(calculate_brand_score)
+
+    # Ensure required columns exist
     required_columns = [
         'kaptUsedate', 'kaptdaCnt', 'kaptTarea', 'kaptTopFloor', 
         'kaptdPcnt', 'kaptdPcntu', 'kaptAddr', 'codeAptNm', 
@@ -90,22 +109,18 @@ def load_data():
             df[col] = None
 
     # Data Cleaning
-    # Convert kaptUsedate to datetime
     df['kaptUsedate'] = pd.to_datetime(df['kaptUsedate'], format='%Y%m%d', errors='coerce')
     df['built_year'] = df['kaptUsedate'].dt.year
     
-    # Fill numeric NaNs
     numeric_cols = ['kaptdaCnt', 'kaptTarea', 'kaptTopFloor', 'kaptdPcnt', 'kaptdPcntu']
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
     
-    # 세대당 주차대수 = (지상+지하) / 세대수
     df['parking_per_unit'] = df.apply(
         lambda r: (r['kaptdPcnt'] + r['kaptdPcntu']) / r['kaptdaCnt'] if r['kaptdaCnt'] > 0 else 0,
         axis=1
     )
     
-    # Extract District (Gu) from kaptAddr
     def get_gu(addr):
         if pd.isna(addr) or not isinstance(addr, str): return "알수없음"
         parts = addr.split()
@@ -128,11 +143,18 @@ st.sidebar.title("🔍 Filters")
 districts = sorted(df['district'].unique())
 selected_districts = st.sidebar.multiselect("행정구역 (구)", districts, default=None)
 
+# Handle cases where built_year might be all NaT
+if df['built_year'].dropna().empty:
+    min_year, max_year = 1980, 2025
+else:
+    min_year = int(df['built_year'].dropna().min())
+    max_year = int(df['built_year'].dropna().max())
+
 year_range = st.sidebar.slider(
     "준공 연도 범위",
-    int(df['built_year'].dropna().min()),
-    int(df['built_year'].dropna().max()),
-    (1980, 2025)
+    min_year,
+    max_year,
+    (min_year, max_year)
 )
 
 # Filter data
@@ -143,7 +165,7 @@ filtered_df = filtered_df[(filtered_df['built_year'] >= year_range[0]) & (filter
 
 # Main Dashboard
 st.title("🏢 아파트 상세 데이터 분석 대시보드")
-st.markdown("`apt_detail.csv` 데이터를 기반으로 한 종합 시각화 리포트입니다.")
+st.markdown("`apt_basic.csv` 및 `apt_detail.csv` 데이터를 기반으로 한 종합 시각화 리포트입니다.")
 
 # Row 1: Summary Stats
 col1, col2, col3 = st.columns(3)
@@ -152,7 +174,7 @@ with col1:
 with col2:
     st.metric("평균 세대 수", f"{int(filtered_df['kaptdaCnt'].mean()) if not filtered_df.empty else 0:,} 세대")
 with col3:
-    if not filtered_df.empty:
+    if not filtered_df.empty and not filtered_df['built_year'].isna().all():
         median_year = filtered_df['built_year'].median()
         current_year = datetime.now().year
         median_age = int(current_year - median_year)
@@ -167,28 +189,29 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏠 아파트 유형", "📅 연도별
 
 with tab1:
     st.subheader("🏠 아파트 유형 분포")
-    type_counts = filtered_df['codeAptNm'].value_counts()
-    fig_type = px.pie(
-        values=type_counts.values, 
-        names=type_counts.index, 
-        hole=0.4,
-        color_discrete_sequence=px.colors.qualitative.Safe,
-        template="plotly_white"
-    )
-    st.plotly_chart(fig_type, use_container_width=True)
+    if not filtered_df.empty and 'codeAptNm' in filtered_df.columns:
+        type_counts = filtered_df['codeAptNm'].value_counts()
+        fig_type = px.pie(
+            values=type_counts.values, 
+            names=type_counts.index, 
+            hole=0.4,
+            color_discrete_sequence=px.colors.qualitative.Safe,
+            template="plotly_white"
+        )
+        st.plotly_chart(fig_type, use_container_width=True)
+    else:
+        st.info("표시할 아파트 유형 데이터가 없습니다.")
 
 with tab2:
     st.subheader("📅 연도별 준공 현황")
     
-    # Fun fact section
-    if not filtered_df.empty:
+    if not filtered_df.empty and not filtered_df['built_year'].isna().all():
         st.markdown("### 💡 Fun fact")
         
         # Calculate facts
         oldest_apt = filtered_df.loc[filtered_df['built_year'].idxmin()]
         newest_apt = filtered_df.loc[filtered_df['built_year'].idxmax()]
         
-        # For median, we take the one closest to the median year
         median_year = filtered_df['built_year'].median()
         median_apt = filtered_df.iloc[(filtered_df['built_year'] - median_year).abs().argsort()[:1]].iloc[0]
         
@@ -223,95 +246,95 @@ with tab2:
         
         st.markdown("<br>", unsafe_allow_html=True)
 
-    # Aggregate by year
-    annual_stats = filtered_df.groupby('built_year').agg({
-        'kaptName': 'count',
-        'kaptdaCnt': 'sum'
-    }).rename(columns={'kaptName': '아파트 수', 'kaptdaCnt': '세대 수'}).reset_index()
+        annual_stats = filtered_df.groupby('built_year').agg({
+            'kaptName': 'count',
+            'kaptdaCnt': 'sum'
+        }).rename(columns={'kaptName': '아파트 수', 'kaptdaCnt': '세대 수'}).reset_index()
 
-    fig_year = go.Figure()
-    
-    # Line for Apartment Count
-    fig_year.add_trace(go.Scatter(
-        x=annual_stats['built_year'], 
-        y=annual_stats['아파트 수'],
-        name='아파트 수',
-        line=dict(color='#0ea5e9', width=3),
-        mode='lines+markers'
-    ))
-    
-    # Bar for Unit Count (Secondary axis)
-    fig_year.add_trace(go.Bar(
-        x=annual_stats['built_year'],
-        y=annual_stats['세대 수'],
-        name='세대 수',
-        marker_color='rgba(244, 63, 94, 0.3)',
-        yaxis='y2'
-    ))
-
-    fig_year.update_layout(
-        template="plotly_white",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        yaxis=dict(title="아파트 수", title_font=dict(color="#0ea5e9"), tickfont=dict(color="#0ea5e9"), rangemode='tozero'),
-        yaxis2=dict(title="세대 수", title_font=dict(color="#f43f5e"), tickfont=dict(color="#f43f5e"), overlaying='y', side='right', showgrid=False, rangemode='tozero'),
-        hovermode="x unified",
-        margin=dict(t=30, b=0, l=0, r=0)
-    )
-    st.plotly_chart(fig_year, use_container_width=True)
+        fig_year = go.Figure()
+        fig_year.add_trace(go.Scatter(
+            x=annual_stats['built_year'], 
+            y=annual_stats['아파트 수'],
+            name='아파트 수',
+            line=dict(color='#0ea5e9', width=3),
+            mode='lines+markers'
+        ))
+        fig_year.add_trace(go.Bar(
+            x=annual_stats['built_year'],
+            y=annual_stats['세대 수'],
+            name='세대 수',
+            marker_color='rgba(244, 63, 94, 0.3)',
+            yaxis='y2'
+        ))
+        fig_year.update_layout(
+            template="plotly_white",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            yaxis=dict(title="아파트 수", title_font=dict(color="#0ea5e9"), tickfont=dict(color="#0ea5e9"), rangemode='tozero'),
+            yaxis2=dict(title="세대 수", title_font=dict(color="#f43f5e"), tickfont=dict(color="#f43f5e"), overlaying='y', side='right', showgrid=False, rangemode='tozero'),
+            hovermode="x unified",
+            margin=dict(t=30, b=0, l=0, r=0)
+        )
+        st.plotly_chart(fig_year, use_container_width=True)
+    else:
+        st.info("준공 연도 데이터가 없습니다.")
 
 with tab3:
     c1, c2 = st.columns(2)
     
     with c1:
         st.subheader("🔥 난방 방식 분포")
-        heat_counts = filtered_df['codeHeatNm'].value_counts()
-        fig_heat = px.bar(
-            x=heat_counts.index, 
-            y=heat_counts.values,
-            labels={'x': '난방 방식', 'y': '아파트 수'},
-            color=heat_counts.index,
-            template="plotly_white",
-            color_discrete_sequence=px.colors.qualitative.Pastel
-        )
-        st.plotly_chart(fig_heat, use_container_width=True)
+        if not filtered_df.empty and 'codeHeatNm' in filtered_df.columns:
+            heat_counts = filtered_df['codeHeatNm'].value_counts()
+            fig_heat = px.bar(
+                x=heat_counts.index, 
+                y=heat_counts.values,
+                labels={'x': '난방 방식', 'y': '아파트 수'},
+                color=heat_counts.index,
+                template="plotly_white",
+                color_discrete_sequence=px.colors.qualitative.Pastel
+            )
+            st.plotly_chart(fig_heat, use_container_width=True)
         
     with c2:
         st.subheader("⬆️ 최고 층수 분포")
-        fig_floor = px.histogram(
-            filtered_df, 
-            x="kaptTopFloor", 
-            nbins=30,
-            template="plotly_white",
-            color_discrete_sequence=['#6366f1']
-        )
-        fig_floor.update_layout(xaxis_title="층수", yaxis_title="건물 수")
-        st.plotly_chart(fig_floor, use_container_width=True)
+        if not filtered_df.empty:
+            fig_floor = px.histogram(
+                filtered_df, 
+                x="kaptTopFloor", 
+                nbins=30,
+                template="plotly_white",
+                color_discrete_sequence=['#6366f1']
+            )
+            fig_floor.update_layout(xaxis_title="층수", yaxis_title="건물 수")
+            st.plotly_chart(fig_floor, use_container_width=True)
 
 with tab4:
     st.subheader("🏗️ 주요 건설사별 아파트 수 (Top 20)")
-    builder_counts = filtered_df['kaptBcompany'].value_counts().head(20)
-    fig_builder = px.bar(
-        y=builder_counts.index, 
-        x=builder_counts.values,
-        orientation='h',
-        labels={'x': '아파트 수', 'y': '건설사'},
-        template="plotly_white",
-        color=builder_counts.values,
-        color_continuous_scale='Blues'
-    )
-    fig_builder.update_layout(yaxis={'categoryorder':'total ascending'})
-    st.plotly_chart(fig_builder, use_container_width=True)
+    if not filtered_df.empty and 'kaptBcompany' in filtered_df.columns:
+        builder_counts = filtered_df['kaptBcompany'].value_counts().head(20)
+        fig_builder = px.bar(
+            y=builder_counts.index, 
+            x=builder_counts.values,
+            orientation='h',
+            labels={'x': '아파트 수', 'y': '건설사'},
+            template="plotly_white",
+            color=builder_counts.values,
+            color_continuous_scale='Blues'
+        )
+        fig_builder.update_layout(yaxis={'categoryorder':'total ascending'})
+        st.plotly_chart(fig_builder, use_container_width=True)
 
 # Data Table
 with st.expander("📄 원본 데이터 보기"):
-    st.dataframe(filtered_df[['kaptName', 'kaptAddr', 'codeAptNm', 'built_year', 'kaptdaCnt', 'kaptBcompany']])
+    cols_to_show = ['kaptName', 'kaptAddr', 'codeAptNm', 'built_year', 'kaptdaCnt', 'kaptBcompany']
+    available_cols = [c for c in cols_to_show if c in filtered_df.columns]
+    st.dataframe(filtered_df[available_cols])
 
 # Tab 5: Radar Chart
 with tab5:
     st.subheader("🎯 아파트 백분위 비교")
     st.markdown("단지명을 검색하면 해당 아파트가 **전체 데이터 대비 어느 백분위**에 위치하는지 레이더 차트로 확인할 수 있습니다.")
 
-    # 검색 입력
     search_query = st.text_input("🔍 아파트 단지명 검색", placeholder="예: 래미안, 자이, 힐스테이트 ...")
 
     if search_query:
@@ -323,23 +346,20 @@ with tab5:
             selected_name = st.selectbox("아파트 선택", apt_names)
             selected = matched[matched['kaptName'] == selected_name].iloc[0]
 
-            # 백분위 계산 (전체 데이터 기준)
             def percentile_rank(series, value):
                 valid = series.dropna()
                 if len(valid) == 0 or pd.isna(value):
                     return 0
                 return round((valid < value).sum() / len(valid) * 100, 1)
 
-            # 연식: 준공연도가 최신일수록 높은 백분위
             age_pct = percentile_rank(df['built_year'], selected['built_year'])
             unit_pct = percentile_rank(df['kaptdaCnt'], selected['kaptdaCnt'])
             parking_ratio = (selected['kaptdPcnt'] + selected['kaptdPcntu']) / selected['kaptdaCnt'] if selected['kaptdaCnt'] > 0 else 0
             parking_pct = percentile_rank(df['parking_per_unit'], parking_ratio)
+            brand_pct = percentile_rank(df['brand_score'], selected['brand_score'])
 
-            # 아파트 정보 카드
             built_year_display = int(selected['built_year']) if not pd.isna(selected['built_year']) else '정보없음'
             unit_display = int(selected['kaptdaCnt']) if selected['kaptdaCnt'] > 0 else '정보없음'
-
             unit_display_str = f"{unit_display:,}세대" if isinstance(unit_display, int) else str(unit_display)
 
             st.markdown(f"""
@@ -350,14 +370,13 @@ with tab5:
                 <div style="display:flex; gap:24px; margin-top:14px; flex-wrap:wrap;">
                     <span style="color:#0ea5e9; font-weight:600;">📅 준공: {built_year_display}년</span>
                     <span style="color:#f43f5e; font-weight:600;">🏠 세대수: {unit_display_str}</span>
+                    <span style="color:#6366f1; font-weight:600;">🏆 브랜드 점수: {selected['brand_score']}점</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-
-            # 레이더 차트
-            categories = ['연식 (신축도)', '세대 수', '세대당 주차대수']
-            values = [age_pct, unit_pct, parking_pct]
+            categories = ['연식 (신축도)', '세대 수', '세대당 주차대수', '브랜드 점수']
+            values = [age_pct, unit_pct, parking_pct, brand_pct]
 
             fig_radar = go.Figure()
             fig_radar.add_trace(go.Scatterpolar(
@@ -392,7 +411,6 @@ with tab5:
 
             st.plotly_chart(fig_radar, use_container_width=True)
 
-            # 백분위 상세 표
             st.markdown("#### 📊 백분위 상세")
             total_parking = int(selected['kaptdPcnt'] + selected['kaptdPcntu'])
             parking_ratio_display = f"{parking_ratio:.2f}대/세대" if parking_ratio > 0 else '정보없음'
@@ -401,7 +419,8 @@ with tab5:
                 '해당 아파트 값': [
                     f"{built_year_display}년",
                     f"{unit_display:,}세대" if isinstance(unit_display, int) else str(unit_display),
-                    parking_ratio_display
+                    parking_ratio_display,
+                    f"{selected['brand_score']}점"
                 ],
                 '백분위': [f"{v:.1f}%" for v in values]
             }

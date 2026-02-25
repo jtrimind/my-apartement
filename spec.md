@@ -151,6 +151,11 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
 #### 원본 데이터 조회
 - `📄 원본 데이터 보기` 확장 패널에서 필터된 데이터 테이블 조회 가능
 
+#### `apt_brand.csv` — 브랜드 점수 데이터
+- 주요 아파트 브랜드별 선호도/가치 점수를 저장한 기준 데이터
+- **필드 구성**: `brand_name` (브랜드명), `score` (점수, 1~5점)
+- 단지명(`kaptName`)에 해당 브랜드명이 포함되어 있을 경우 해당 점수를 부여 (기본값: 2점)
+
 ---
 
 ## 기술 스택
@@ -175,11 +180,12 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
  get_list.py  ──→  apt_list.csv   (~21,900 단지)
                          │
                          ▼
-  get_detail.py ──┬→ apt_basic.csv  (기본 정보)
-                 └→ apt_detail.csv (상세 정보)
-                         │
-                         ▼
-        main.py (Streamlit 대시보드)
+  get_detail.py ──┬→ apt_basic.csv   (기본 정보)
+                 └→ apt_detail.csv  (상세 정보)
+ apt_brand.csv  ───→ (브랜드 점수 매핑)
+                          │
+                          ▼
+         main.py (Streamlit 대시보드)
 ```
 
 ---
