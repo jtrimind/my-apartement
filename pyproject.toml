@@ -10,3 +10,9 @@ dependencies = [
     "streamlit>=1.52.2",
     "python-dotenv>=1.0.0",
 ]
+
+[tool.uv]
+package = false
+
+[tool.poetry]
+package-mode = false
