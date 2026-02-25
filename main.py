@@ -148,6 +148,19 @@ def load_data():
     
     df['city'] = df['kaptAddr'].apply(get_city)
     df['district'] = df['kaptAddr'].apply(get_gu)
+
+    # Load area data
+    try:
+        df_price = pd.read_csv('apt_price_mapped.csv', usecols=['kaptCode', '전용면적'])
+        df_price['전용면적'] = pd.to_numeric(df_price['전용면적'], errors='coerce')
+        df_price = df_price.dropna(subset=['전용면적'])
+        
+        agg_area = df_price.groupby('kaptCode')['전용면적'].agg(['unique', 'min', 'max']).reset_index()
+        agg_area.rename(columns={'unique': 'areas', 'min': 'min_area', 'max': 'max_area'}, inplace=True)
+        agg_area['areas'] = agg_area['areas'].apply(lambda x: sorted(list(x)))
+        df = pd.merge(df, agg_area, on='kaptCode', how='left')
+    except Exception:
+        pass # Leave areas columns out if file not found
     
     return df
 
@@ -199,6 +212,42 @@ unit_range = st.sidebar.slider(
     (min_unit, max_unit)
 )
 
+if 'min_area' in df.columns and not df['min_area'].dropna().empty:
+    min_a = int(df['min_area'].dropna().min())
+    max_a = int(df['max_area'].dropna().max())
+else:
+    min_a, max_a = 0, 300
+
+if 'area_range' not in st.session_state:
+    st.session_state.area_range = (min_a, max_a)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("#### 전용면적 빠른 선택")
+col_area_1, col_area_2 = st.sidebar.columns(2)
+col_area_3, col_area_4 = st.sidebar.columns(2)
+col_area_5, col_area_6 = st.sidebar.columns(2)
+
+if col_area_1.button("전체", use_container_width=True):
+    st.session_state.area_range = (min_a, max_a)
+if col_area_2.button("초소형 (~40㎡)", use_container_width=True):
+    st.session_state.area_range = (min_a, 40)
+if col_area_3.button("소형 (40~60㎡)", use_container_width=True):
+    st.session_state.area_range = (40, 60)
+if col_area_4.button("중소형 (60~85㎡)", use_container_width=True):
+    st.session_state.area_range = (60, 85)
+if col_area_5.button("중대형 (85~135㎡)", use_container_width=True):
+    st.session_state.area_range = (85, 135)
+if col_area_6.button("대형 (135㎡~)", use_container_width=True):
+    st.session_state.area_range = (135, max_a)
+
+area_range = st.sidebar.slider(
+    "전용면적 직접 선택 (㎡)",
+    min_a,
+    max_a,
+    st.session_state.area_range,
+    key="area_range"
+)
+
 # Filter data
 filtered_df = df.copy()
 if selected_cities:
@@ -207,6 +256,12 @@ if selected_districts:
     filtered_df = filtered_df[filtered_df['district'].isin(selected_districts)]
 filtered_df = filtered_df[(filtered_df['built_year'] >= year_range[0]) & (filtered_df['built_year'] <= year_range[1])]
 filtered_df = filtered_df[(filtered_df['kaptdaCnt'] >= unit_range[0]) & (filtered_df['kaptdaCnt'] <= unit_range[1])]
+
+if 'areas' in df.columns and (area_range[0] > min_a or area_range[1] < max_a):
+    def has_area_in_range(areas, min_v, max_v):
+        if not isinstance(areas, list): return False
+        return any(min_v <= a <= max_v for a in areas)
+    filtered_df = filtered_df[filtered_df['areas'].apply(lambda x: has_area_in_range(x, area_range[0], area_range[1]))]
 
 # Buy me a coffee button (Sidebar Footer)
 st.sidebar.markdown("---")
@@ -275,6 +330,12 @@ with tab1:
             unit_display_str = f"{unit_display:,}세대" if isinstance(unit_display, int) else str(unit_display)
             station_display = selected['kaptdWtimesub'] if not pd.isna(selected['kaptdWtimesub']) else '정보없음'
 
+            areas_str = "정보없음"
+            if 'areas' in selected and isinstance(selected['areas'], list) and len(selected['areas']) > 0:
+                areas_str = ", ".join([f"{a:g}㎡" for a in selected['areas']])
+                if len(selected['areas']) > 5:
+                    areas_str = ", ".join([f"{a:g}㎡" for a in selected['areas'][:5]]) + " ..."
+
             st.markdown(f"""
             <div style="background:#ffffff; border-radius:12px; padding:20px; border:1px solid #e2e8f0;
                         box-shadow:0 4px 6px -1px rgba(0,0,0,0.07); margin-bottom:24px;">
@@ -283,6 +344,7 @@ with tab1:
                 <div style="display:flex; gap:24px; margin-top:14px; flex-wrap:wrap;">
                     <span style="color:#0ea5e9; font-weight:600;">📅 준공: {built_year_display}년</span>
                     <span style="color:#f43f5e; font-weight:600;">🏠 세대수: {unit_display_str}</span>
+                    <span style="color:#8b5cf6; font-weight:600;">📐 면적: {areas_str}</span>
                     <span style="color:#6366f1; font-weight:600;">🏆 브랜드 점수: {selected['brand_score']}점</span>
                     <span style="color:#10b981; font-weight:600;">🚇 역세권: {station_display}</span>
                 </div>
