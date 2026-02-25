@@ -149,18 +149,26 @@ def load_data():
     df['city'] = df['kaptAddr'].apply(get_city)
     df['district'] = df['kaptAddr'].apply(get_gu)
 
-    # Load area data
+    # Load area and price data
     try:
-        df_price = pd.read_csv('apt_price_mapped.csv', usecols=['kaptCode', '전용면적'])
-        df_price['전용면적'] = pd.to_numeric(df_price['전용면적'], errors='coerce')
-        df_price = df_price.dropna(subset=['전용면적'])
+        df_p = pd.read_csv('apt_price_mapped.csv', usecols=['kaptCode', '전용면적', '공시가격'])
+        df_p['전용면적'] = pd.to_numeric(df_p['전용면적'], errors='coerce')
+        df_p['공시가격'] = pd.to_numeric(df_p['공시가격'], errors='coerce')
         
-        agg_area = df_price.groupby('kaptCode')['전용면적'].agg(['unique', 'min', 'max']).reset_index()
+        df_area_cln = df_p.dropna(subset=['전용면적'])
+        agg_area = df_area_cln.groupby('kaptCode')['전용면적'].agg(['unique', 'min', 'max']).reset_index()
         agg_area.rename(columns={'unique': 'areas', 'min': 'min_area', 'max': 'max_area'}, inplace=True)
         agg_area['areas'] = agg_area['areas'].apply(lambda x: sorted(list(x)))
         df = pd.merge(df, agg_area, on='kaptCode', how='left')
+
+        df_price_cln = df_p.dropna(subset=['공시가격'])
+        agg_price = df_price_cln.groupby('kaptCode')['공시가격'].agg(['min', 'max']).reset_index()
+        agg_price['min_price'] = agg_price['min'] / 100000000.0
+        agg_price['max_price'] = agg_price['max'] / 100000000.0
+        agg_price.drop(columns=['min', 'max'], inplace=True)
+        df = pd.merge(df, agg_price, on='kaptCode', how='left')
     except Exception:
-        pass # Leave areas columns out if file not found
+        pass # Leave areas/price columns out if file not found
     
     return df
 
@@ -248,6 +256,35 @@ area_range = st.sidebar.slider(
     key="area_range"
 )
 
+if 'min_price' in df.columns and not df['min_price'].dropna().empty:
+    min_p = float(df['min_price'].dropna().min())
+    max_p = float(df['max_price'].dropna().max())
+else:
+    min_p, max_p = 0.0, 200.0
+
+if 'price_range' not in st.session_state:
+    st.session_state.price_range = (min_p, max_p)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("#### 공시가격 빠른 선택")
+col_price_1, col_price_2, col_price_3 = st.sidebar.columns(3)
+
+if col_price_1.button("전체", key="btn_p_all", use_container_width=True):
+    st.session_state.price_range = (min_p, max_p)
+if col_price_2.button("6억 이하", key="btn_p_6", help="장기주택저당차입금 이자상환액 소득공제 기준", use_container_width=True):
+    st.session_state.price_range = (min_p, min(6.0, max_p))
+if col_price_3.button("12억 이하", key="btn_p_12", help="종합부동산세 비과세 기준", use_container_width=True):
+    st.session_state.price_range = (min_p, min(12.0, max_p))
+
+price_range = st.sidebar.slider(
+    "공시가격 직접 선택 (억원)",
+    float(min_p),
+    float(max_p),
+    st.session_state.price_range,
+    key="price_range",
+    step=0.1
+)
+
 # Filter data
 filtered_df = df.copy()
 if selected_cities:
@@ -262,6 +299,9 @@ if 'areas' in df.columns and (area_range[0] > min_a or area_range[1] < max_a):
         if not isinstance(areas, list): return False
         return any(min_v <= a <= max_v for a in areas)
     filtered_df = filtered_df[filtered_df['areas'].apply(lambda x: has_area_in_range(x, area_range[0], area_range[1]))]
+
+if 'min_price' in df.columns and (price_range[0] > min_p or price_range[1] < max_p):
+    filtered_df = filtered_df[~((filtered_df['max_price'] < price_range[0]) | (filtered_df['min_price'] > price_range[1]))]
 
 # Buy me a coffee button (Sidebar Footer)
 st.sidebar.markdown("---")
@@ -336,6 +376,13 @@ with tab1:
                 if len(selected['areas']) > 5:
                     areas_str = ", ".join([f"{a:g}㎡" for a in selected['areas'][:5]]) + " ..."
 
+            price_str = "정보없음"
+            if 'min_price' in selected and not pd.isna(selected['min_price']):
+                if selected['min_price'] == selected['max_price']:
+                    price_str = f"{selected['min_price']:.1f}억원"
+                else:
+                    price_str = f"{selected['min_price']:.1f}억 ~ {selected['max_price']:.1f}억원"
+
             st.markdown(f"""
             <div style="background:#ffffff; border-radius:12px; padding:20px; border:1px solid #e2e8f0;
                         box-shadow:0 4px 6px -1px rgba(0,0,0,0.07); margin-bottom:24px;">
@@ -345,6 +392,7 @@ with tab1:
                     <span style="color:#0ea5e9; font-weight:600;">📅 준공: {built_year_display}년</span>
                     <span style="color:#f43f5e; font-weight:600;">🏠 세대수: {unit_display_str}</span>
                     <span style="color:#8b5cf6; font-weight:600;">📐 면적: {areas_str}</span>
+                    <span style="color:#eab308; font-weight:600;">💰 공시가: {price_str}</span>
                     <span style="color:#6366f1; font-weight:600;">🏆 브랜드 점수: {selected['brand_score']}점</span>
                     <span style="color:#10b981; font-weight:600;">🚇 역세권: {station_display}</span>
                 </div>
