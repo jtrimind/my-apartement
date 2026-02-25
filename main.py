@@ -230,7 +230,7 @@ with col3:
 st.markdown("---")
 
 # Row 2: Charts
-tab1, tab2, tab3 = st.tabs(["🎯 아파트 비교", "📅 연도별 준공 현황", "🏢 단지 규모 현황"])
+tab1, tab2, tab3, tab4 = st.tabs(["🎯 아파트 비교", "📅 연도별 준공 현황", "🏢 단지 규모 현황", "📄 필터링 데이터 목록"])
 
 with tab1:
     st.subheader("🎯 아파트 백분위 비교")
@@ -447,6 +447,15 @@ with tab3:
         st.plotly_chart(fig_units, use_container_width=True)
     else:
         st.info("세대수 데이터를 표시할 수 없습니다.")
+
+with tab4:
+    st.subheader("📄 필터링된 데이터 목록")
+    st.markdown("현재 사이드바 필터 조건에 해당하는 아파트 데이터 전체 목록입니다.")
+    cols_to_show = ['kaptName', 'built_year', 'kaptdaCnt', 'codeAptNm', 'district', 'kaptAddr', 'kaptBcompany']
+    available_cols = [c for c in cols_to_show if c in filtered_df.columns]
+    
+    st.dataframe(filtered_df[available_cols], use_container_width=True, hide_index=True)
+
 st.markdown("""
 ---
 Created by Antigravity 🚀
