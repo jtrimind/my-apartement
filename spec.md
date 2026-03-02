@@ -174,12 +174,30 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
 - 역세권 점수 계산 시, 선택 아파트 인근에 여러 노선이 겹칠 경우 가장 높은 가중치(`max_multiplier`)를 기본 점수(도보 시간 기준)에 곱하여 최종 산출합니다.
 
 #### 역세권 점수 (Station Area Score)
-- `apt_detail.csv`의 `kaptdWtimesub` (지하철역 소요시간) 필드를 기반으로 점수화
-  - '5분이내': 5점
-  - '5~10분이내': 4점
-  - '10~15분이내': 3점
-  - '15~20분이내': 2점
+- `apt_detail.csv`의 `kaptdWtimesub` (지하철역 소요시간) 필드 및 추가 검증 데이터의 직선거리를 기반으로 점수화
+  - '5분이내' 또는 직선거리 250m 이내: 5점
+  - '5~10분이내' 또는 직선거리 500m 이내: 4점
+  - '10~15분이내' 또는 직선거리 750m 이내: 3점
+  - '15~20분이내' 또는 직선거리 1000m 이내: 2점
   - 기타/정보없음: 1점
+
+#### 역세권 공동주택 실거래정보 (`SUBSTAREA_APHUS_ACTRANSCT_INFO`) [추가 검증 데이터]
+- **데이터 소스**: [국가교통 데이터 오픈마켓 - 역세권 공동주택 실거래정보](https://www.bigdata-transportation.kr/frn/prdt/detail?prdtId=PRDTNUM_000000020052)
+- **목적**: 기존 `apt_detail.csv`의 역세권 정보를 추가 검증하고, 실제 실거래가(매매/전세/월세)와 인접 지하철역 간의 직선거리 등을 종합적으로 분석하기 위한 보조 데이터로 활용.
+- **주요 필드 구성**:
+  | 필드명 (영문) | 필드명 (한글) | 설명 |
+  |---------------|---------------|------|
+  | `SIGNGU_CD` | 시군구코드 | 시군구 코드 |
+  | `EMDL_CD` | 읍면동리코드 | 법정동 기준 읍면동리 코드 |
+  | `ADRES_NM` | 주소명 | 법정동 기준 주소명 |
+  | `HOUSE_TYPE` | 주택유형 | 아파트, 연립, 다세대, 오피스텔 |
+  | `HSMP_NM` | 단지명 | 건물/단지 명칭 |
+  | `TRNS_CLSF` | 거래구분 | 매매, 전세, 월세 |
+  | `TRAMT` | 거래금액 | 매매금액 (만원 단위) |
+  | `ASSRNC_AMT` | 보증금액 | 보증금액 (만원 단위) |
+  | `MTHT_AMT` | 월세금액 | 월세금액 (만원 단위) |
+  | `NRB_SWST_NM` | 인접지하철역명 | 인접한 지하철역 명칭 |
+  | `NRB_SWST_DSTNC`| 인접지하철역거리 | 인접 지하철역까지의 직선거리(m) |
 
 ---
 
@@ -199,19 +217,20 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
 ## 데이터 흐름
 
 ```
-공공데이터포털 API
-       │
-       ▼
- get_list.py  ──→  apt_list.csv   (~21,900 단지)
-                         │
-                         ▼
-  get_detail.py ──┬→ apt_basic.csv   (기본 정보)
-                 └→ apt_detail.csv  (상세 정보)
- apt_brand.csv  ───→ (브랜드 점수 매핑)
- 주택공시가격(CSV) ─→ extract_price.py ──→ apt_price_mapped.csv
+ 공공데이터포털 API
+        │
+        ▼
+  get_list.py  ──→  apt_list.csv   (~21,900 단지)
                           │
                           ▼
-### Brand & Station Area Score Implementation
+   get_detail.py ──┬→ apt_basic.csv   (기본 정보)
+                  └→ apt_detail.csv  (상세 정보)
+  apt_brand.csv  ───→ (브랜드 점수 매핑)
+  주택공시가격(CSV) ─→ extract_price.py ──→ apt_price_mapped.csv
+                                           │
+  역세권 실거래정보 ───────────────────────┤ (역세권 정보 추가 검증)
+                                           ▼
+ ### Brand & Station Area Score Implementation
 - Created [apt_brand.csv](file:///c:/Users/trimi/my-apartement/apt_brand.csv) with defined scores for major Korean apartment brands.
 - Updated [main.py](file:///c:/Users/trimi/my-apartement/main.py) to:
     - Automatically assign brand scores by matching `kaptName` with the brand list.

@@ -98,6 +98,13 @@ def load_data():
 
     df['brand_score'] = df['kaptName'].apply(calculate_brand_score)
 
+    # Load override data
+    try:
+        sub_override = pd.read_csv('apt_subway_override.csv')
+        df = pd.merge(df, sub_override, on='kaptCode', how='left')
+    except Exception:
+        pass
+
     try:
         sub_df = pd.read_csv('subway_score.csv', encoding='utf-8')
         subway_weights = dict(zip(sub_df['subwayLine'], sub_df['weight']))
@@ -108,13 +115,27 @@ def load_data():
         time_str = row.get('kaptdWtimesub', None)
         subways = str(row.get('subwayLine', ''))
 
-        mapping = {
-            '5분이내': 5,
-            '5~10분이내': 4,
-            '10~15분이내': 3,
-            '15~20분이내': 2
-        }
-        base_score = mapping.get(time_str, 1) if pd.notna(time_str) else 1
+        base_score = 1
+        if 'subwayDist' in row and pd.notna(row['subwayDist']):
+            dist = float(row['subwayDist'])
+            if dist <= 250:
+                base_score = 5 # 5분이내
+            elif dist <= 500:
+                base_score = 4 # 10분이내
+            elif dist <= 750:
+                base_score = 3 # 15분이내
+            elif dist <= 1000:
+                base_score = 2 # 20분이내
+            else:
+                base_score = 1
+        else:
+            mapping = {
+                '5분이내': 5,
+                '5~10분이내': 4,
+                '10~15분이내': 3,
+                '15~20분이내': 2
+            }
+            base_score = mapping.get(time_str, 1) if pd.notna(time_str) else 1
 
         multiplier = 1.0
         if subways and subways != 'nan':
@@ -444,7 +465,10 @@ with tab1:
             unit_display = int(selected['kaptdaCnt']) if selected['kaptdaCnt'] > 0 else '정보없음'
             unit_display_str = f"{unit_display:,}세대" if isinstance(unit_display, int) else str(unit_display)
             
-            station_time = selected['kaptdWtimesub'] if not pd.isna(selected['kaptdWtimesub']) else '정보없음'
+            if 'subwayStation' in selected and pd.notna(selected['subwayStation']) and 'subwayDist' in selected and pd.notna(selected['subwayDist']):
+                station_time = f"{selected['subwayStation']} ({int(selected['subwayDist'])}m)"
+            else:
+                station_time = selected['kaptdWtimesub'] if not pd.isna(selected['kaptdWtimesub']) else '정보없음'
             subway_line_str = str(selected['subwayLine']) if 'subwayLine' in selected and pd.notna(selected['subwayLine']) else ""
             if subway_line_str.lower() == 'nan' or not subway_line_str.strip():
                 subway_line_str = ""
