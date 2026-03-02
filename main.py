@@ -311,14 +311,14 @@ if col_area_1.button("전체", width="stretch"):
     st.session_state.area_range = (min_a, max_a)
 if col_area_2.button("초소형 (~40㎡)", width="stretch"):
     st.session_state.area_range = (min_a, 40)
-if col_area_3.button("소형 (40~60㎡)", width="stretch"):
-    st.session_state.area_range = (40, 60)
-if col_area_4.button("중소형 (60~85㎡)", width="stretch"):
+if col_area_3.button("소형 (40~50㎡)", width="stretch"):
+    st.session_state.area_range = (40, 50)
+if col_area_4.button("중소형 (50~60㎡)", width="stretch"):
+    st.session_state.area_range = (50, 60)
+if col_area_5.button("중형 (60~85㎡)", width="stretch"):
     st.session_state.area_range = (60, 85)
-if col_area_5.button("중대형 (85~135㎡)", width="stretch"):
-    st.session_state.area_range = (85, 135)
-if col_area_6.button("대형 (135㎡~)", width="stretch"):
-    st.session_state.area_range = (135, max_a)
+if col_area_6.button("대형 (85㎡~)", width="stretch"):
+    st.session_state.area_range = (85, max_a)
 
 area_range = st.sidebar.slider(
     "전용면적 직접 선택 (㎡)",
