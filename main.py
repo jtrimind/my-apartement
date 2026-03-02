@@ -282,17 +282,14 @@ year_range = st.sidebar.slider(
     (min_year, max_year)
 )
 
-if df['kaptdaCnt'].dropna().empty:
-    min_unit, max_unit = 0, 5000
-else:
-    min_unit = int(df['kaptdaCnt'].dropna().min())
-    max_unit = int(df['kaptdaCnt'].dropna().max())
+SLIDER_MAX_UNIT = 2000
 
 unit_range = st.sidebar.slider(
-    "세대 수 범위",
-    min_unit,
-    max_unit,
-    (min_unit, max_unit)
+    f"세대 수 범위 (최대 선택 시 {SLIDER_MAX_UNIT}세대 이상)",
+    min_value=0,
+    max_value=SLIDER_MAX_UNIT,
+    value=(0, SLIDER_MAX_UNIT),
+    step=50
 )
 
 if 'min_area' in df.columns and not df['min_area'].dropna().empty:
@@ -330,11 +327,13 @@ area_range = st.sidebar.slider(
     key="area_range"
 )
 
+SLIDER_MAX_PRICE = 50.0
+
 if 'min_price' in df.columns and not df['min_price'].dropna().empty:
     min_p = float(df['min_price'].dropna().min())
-    max_p = float(df['max_price'].dropna().max())
+    max_p = SLIDER_MAX_PRICE
 else:
-    min_p, max_p = 0.0, 200.0
+    min_p, max_p = 0.0, SLIDER_MAX_PRICE
 
 if 'price_range' not in st.session_state:
     st.session_state.price_range = (min_p, max_p)
@@ -351,7 +350,7 @@ if col_price_3.button("12억 이하", key="btn_p_12", help="종합부동산세 �
     st.session_state.price_range = (min_p, min(12.0, max_p))
 
 price_range = st.sidebar.slider(
-    "공시가격 직접 선택 (억원)",
+    f"공시가격 직접 선택 (최대 선택 시 {SLIDER_MAX_PRICE}억원 이상)",
     float(min_p),
     float(max_p),
     key="price_range",
@@ -382,10 +381,15 @@ if selected_cities:
 if selected_districts:
     filtered_df = filtered_df[filtered_df['district'].isin(selected_districts)]
 filtered_df = filtered_df[(filtered_df['built_year'] >= year_range[0]) & (filtered_df['built_year'] <= year_range[1])]
-filtered_df = filtered_df[(filtered_df['kaptdaCnt'] >= unit_range[0]) & (filtered_df['kaptdaCnt'] <= unit_range[1])]
+
+if unit_range[1] >= SLIDER_MAX_UNIT:
+    filtered_df = filtered_df[filtered_df['kaptdaCnt'] >= unit_range[0]]
+else:
+    filtered_df = filtered_df[(filtered_df['kaptdaCnt'] >= unit_range[0]) & (filtered_df['kaptdaCnt'] <= unit_range[1])]
 
 is_area_filtered = 'areas' in df.columns and (area_range[0] > min_a or area_range[1] < max_a)
 is_price_filtered = 'min_price' in df.columns and (price_range[0] > min_p or price_range[1] < max_p)
+effective_price_max = float('inf') if price_range[1] >= max_p else price_range[1]
 
 if is_area_filtered or is_price_filtered:
     def check_conditions(row):
@@ -412,10 +416,10 @@ if is_area_filtered or is_price_filtered:
             if is_price_filtered:
                 if not is_area_filtered:
                     overall_max_price = max(area_max_prices.values()) if area_max_prices else 0
-                    return price_range[0] <= overall_max_price <= price_range[1]
+                    return price_range[0] <= overall_max_price <= effective_price_max
                 
                 for max_price in area_max_prices.values():
-                    if price_range[0] <= max_price <= price_range[1]:
+                    if price_range[0] <= max_price <= effective_price_max:
                         return True
                 return False
                 
@@ -436,13 +440,13 @@ if is_area_filtered or is_price_filtered:
                 max_p_val = row.get('max_price')
                 if not is_area_filtered:
                     if pd.notna(max_p_val):
-                        p_ok_overall = (price_range[0] <= max_p_val <= price_range[1])
+                        p_ok_overall = (price_range[0] <= max_p_val <= effective_price_max)
                     else:
                         p_ok_overall = False
                 else:
                     min_p_val = row.get('min_price')
                     if pd.notna(min_p_val) and pd.notna(max_p_val):
-                        p_ok_overall = not (max_p_val < price_range[0] or min_p_val > price_range[1])
+                        p_ok_overall = not (max_p_val < price_range[0] or min_p_val > effective_price_max)
                     else:
                         p_ok_overall = False
                     
