@@ -482,7 +482,13 @@ st.sidebar.markdown("""
 
 # Main Dashboard
 st.title("🏢 아파트 상세 데이터 분석 대시보드")
-st.markdown("`apt_basic.csv` 및 `apt_detail.csv` 데이터를 기반으로 한 종합 시각화 리포트입니다.")
+st.markdown("""
+**데이터 소스:**
+- **공공데이터포털**: 아파트 목록 및 상세 정보 (API)
+- **국토교통부**: 주택 공시가격 정보
+- **국가교통 데이터 오픈마켓**: 역세권 실거래 및 초등학교 도보통학권 정보
+- **자체 데이터**: 브랜드 점수 및 지하철 노선 가중치
+""")
 
 # Row 1: Summary Stats
 col1, col2, col3 = st.columns(3)

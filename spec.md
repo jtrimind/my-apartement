@@ -7,6 +7,18 @@ Streamlit 기반의 인터랙티브 대시보드로 시각화하는 프로젝트
 
 ---
 
+## 데이터 소스
+
+| 분류 | 소스명 | 설명 | 관련 파일 |
+|------|--------|------|-----------|
+| **API** | [공공데이터포털](https://www.data.go.kr) | 아파트 목록, 기본 정보, 상세 정보 수집 | `get_list.py`, `get_detail.py` |
+| **CSV** | [국토교통부 주택 공시가격 정보](https://www.data.go.kr/data/3073746/fileData.do) | 개별 공시가격 및 전용면적 정보 매핑 | `extract_price.py`, `apt_price_mapped.csv` |
+| **CSV** | [역세권 공동주택 실거래정보](https://www.bigdata-transportation.kr/frn/prdt/detail?prdtId=PRDTNUM_000000020052) | 인접 지하철역과의 직선거리 데이터 검증 | `extract_subway.py` |
+| **CSV** | [초등학교 도보통학권 아파트 정보](https://www.bigdata-transportation.kr/frn/prdt/detail?prdtId=PRDTNUM_000000020278) | 초등학교까지의 보행 거리 데이터 | `extract_school.py`, `apt_school_mapped.csv` |
+| **기준 데이터** | 자체 관리 데이터 | 브랜드 점수 (`apt_brand.csv`), 지하철 노선 가중치 (`subway_score.csv`) | - |
+
+---
+
 ## 구성 모듈
 
 ### 1. 데이터 수집
