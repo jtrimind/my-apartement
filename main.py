@@ -520,6 +520,8 @@ with tab1:
                 valid = series.dropna()
                 if len(valid) == 0 or pd.isna(value):
                     return 0
+                if value >= valid.max():
+                    return 100.0
                 return round((valid < value).sum() / len(valid) * 100, 1)
 
             age_pct = percentile_rank(df['built_year'], selected['built_year'])
