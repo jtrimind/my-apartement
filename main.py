@@ -105,6 +105,13 @@ def load_data():
     except Exception:
         pass
 
+    # Load school data
+    try:
+        school_data = pd.read_csv('apt_school_mapped.csv')
+        df = pd.merge(df, school_data, on='kaptCode', how='left')
+    except Exception:
+        pass
+
     try:
         sub_df = pd.read_csv('subway_score.csv', encoding='utf-8')
         subway_weights = dict(zip(sub_df['subwayLine'], sub_df['weight']))
@@ -147,6 +154,24 @@ def load_data():
         return base_score * multiplier
 
     df['station_score'] = df.apply(calculate_station_score, axis=1)
+
+    def calculate_school_score(row):
+        dist = row.get('schul_dstnc')
+        if pd.isna(dist):
+            return 1
+        dist = float(dist)
+        if dist <= 250:
+            return 5
+        elif dist <= 500:
+            return 4
+        elif dist <= 750:
+            return 3
+        elif dist <= 1000:
+            return 2
+        else:
+            return 1
+
+    df['school_score'] = df.apply(calculate_school_score, axis=1)
 
     # Ensure required columns exist
     required_columns = [
@@ -359,34 +384,64 @@ is_price_filtered = 'min_price' in df.columns and (price_range[0] > min_p or pri
 
 if is_area_filtered or is_price_filtered:
     def check_conditions(row):
-        a_ok_overall = True
-        p_ok_overall = True
-        
-        # If both filters applied, check combinations
-        if is_area_filtered and is_price_filtered and 'area_price_list' in row and isinstance(row['area_price_list'], list):
+        if 'area_price_list' in row and isinstance(row['area_price_list'], list):
             ap_list = row['area_price_list']
-            if len(ap_list) > 0:
-                for area, price in ap_list:
-                    if (area_range[0] <= area <= area_range[1]) and (price_range[0] <= price <= price_range[1]):
+            if len(ap_list) == 0:
+                return False
+                
+            # Filter by area first
+            matching_ap = []
+            for area, price in ap_list:
+                if area_range[0] <= area <= area_range[1]:
+                    matching_ap.append((area, price))
+                    
+            if not matching_ap:
+                return False
+                
+            # Find max price for each matched area
+            area_max_prices = {}
+            for area, price in matching_ap:
+                if area not in area_max_prices or price > area_max_prices[area]:
+                    area_max_prices[area] = price
+                    
+            if is_price_filtered:
+                if not is_area_filtered:
+                    overall_max_price = max(area_max_prices.values()) if area_max_prices else 0
+                    return price_range[0] <= overall_max_price <= price_range[1]
+                
+                for max_price in area_max_prices.values():
+                    if price_range[0] <= max_price <= price_range[1]:
                         return True
                 return False
-
-        if is_area_filtered:
-            areas = row.get('areas')
-            if isinstance(areas, list):
-                a_ok_overall = any(area_range[0] <= a <= area_range[1] for a in areas)
-            else:
-                a_ok_overall = False
                 
-        if is_price_filtered:
-            min_p_val = row.get('min_price')
-            max_p_val = row.get('max_price')
-            if pd.notna(min_p_val) and pd.notna(max_p_val):
-                p_ok_overall = not (max_p_val < price_range[0] or min_p_val > price_range[1])
-            else:
-                p_ok_overall = False
-                
-        return a_ok_overall and p_ok_overall
+            return True
+            
+        else:
+            a_ok_overall = True
+            p_ok_overall = True
+            
+            if is_area_filtered:
+                areas = row.get('areas')
+                if isinstance(areas, list):
+                    a_ok_overall = any(area_range[0] <= a <= area_range[1] for a in areas)
+                else:
+                    a_ok_overall = False
+                    
+            if is_price_filtered:
+                max_p_val = row.get('max_price')
+                if not is_area_filtered:
+                    if pd.notna(max_p_val):
+                        p_ok_overall = (price_range[0] <= max_p_val <= price_range[1])
+                    else:
+                        p_ok_overall = False
+                else:
+                    min_p_val = row.get('min_price')
+                    if pd.notna(min_p_val) and pd.notna(max_p_val):
+                        p_ok_overall = not (max_p_val < price_range[0] or min_p_val > price_range[1])
+                    else:
+                        p_ok_overall = False
+                    
+            return a_ok_overall and p_ok_overall
 
     filtered_df = filtered_df[filtered_df.apply(check_conditions, axis=1)]
 
@@ -460,6 +515,7 @@ with tab1:
             parking_pct = percentile_rank(df['parking_per_unit'], parking_ratio)
             brand_pct = percentile_rank(df['brand_score'], selected['brand_score'])
             station_pct = percentile_rank(df['station_score'], selected['station_score'])
+            school_pct = percentile_rank(df['school_score'], selected['school_score'])
 
             built_year_display = int(selected['built_year']) if not pd.isna(selected['built_year']) else '정보없음'
             unit_display = int(selected['kaptdaCnt']) if selected['kaptdaCnt'] > 0 else '정보없음'
@@ -487,6 +543,10 @@ with tab1:
                 else:
                     price_str = f"{selected['min_price']:.1f}억 ~ {selected['max_price']:.1f}억원"
 
+            school_display = "정보없음"
+            if 'schul_nm' in selected and pd.notna(selected['schul_nm']) and 'schul_dstnc' in selected and pd.notna(selected['schul_dstnc']):
+                school_display = f"{selected['schul_nm']} ({int(selected['schul_dstnc'])}m)"
+
             st.markdown(f"""
             <div style="background:#ffffff; border-radius:12px; padding:20px; border:1px solid #e2e8f0;
                         box-shadow:0 4px 6px -1px rgba(0,0,0,0.07); margin-bottom:24px;">
@@ -499,12 +559,13 @@ with tab1:
                     <span style="color:#eab308; font-weight:600;">💰 공시가: {price_str}</span>
                     <span style="color:#6366f1; font-weight:600;">🏆 브랜드 점수: {selected['brand_score']}점</span>
                     <span style="color:#10b981; font-weight:600;">🚇 역세권: {station_display}</span>
+                    <span style="color:#ec4899; font-weight:600;">🏫 초품아: {school_display}</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-            categories = ['연식 (신축도)', '세대 수', '세대당 주차대수', '브랜드 점수', '역세권 점수']
-            values = [age_pct, unit_pct, parking_pct, brand_pct, station_pct]
+            categories = ['연식 (신축도)', '세대 수', '세대당 주차대수', '브랜드 점수', '역세권 점수', '초품아 점수']
+            values = [age_pct, unit_pct, parking_pct, brand_pct, station_pct, school_pct]
 
             fig_radar = go.Figure()
             fig_radar.add_trace(go.Scatterpolar(
@@ -549,7 +610,8 @@ with tab1:
                     f"{unit_display:,}세대" if isinstance(unit_display, int) else str(unit_display),
                     parking_ratio_display,
                     f"{selected['brand_score']}점",
-                    station_display
+                    station_display,
+                    school_display
                 ],
                 '백분위': [f"{v:.1f}%" for v in values]
             }
