@@ -60,7 +60,7 @@ def load_data():
         
     # Load detail info
     try:
-        df_detail = pd.read_csv('apt_detail.csv')
+        df_detail = pd.read_csv('apt_detail.csv', low_memory=False)
     except Exception:
         df_detail = pd.DataFrame(columns=['kaptCode'])
         
@@ -236,7 +236,8 @@ def load_data():
         df_ap_cln = df_p.dropna(subset=['전용면적', '공시가격']).copy()
         df_ap_cln['price_억원'] = df_ap_cln['공시가격'] / 100000000.0
         agg_ap = df_ap_cln.groupby('kaptCode').apply(
-            lambda x: list(zip(x['전용면적'], x['price_억원']))
+            lambda x: list(zip(x['전용면적'], x['price_억원'])),
+            include_groups=False
         ).reset_index(name='area_price_list')
         df = pd.merge(df, agg_ap, on='kaptCode', how='left')
     except Exception:
