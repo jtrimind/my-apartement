@@ -11,7 +11,7 @@ def process_price_data():
     COPY (
         SELECT 
             A.kaptCode,
-            CAST(P.전용면적 AS DOUBLE) AS 전용면적,
+            CAST(P.전용면적 AS DOUBLE) AS exclusive_area,
             MIN(TRY_CAST(REPLACE(P.공시가격, ',', '') AS BIGINT)) AS min_price,
             MAX(TRY_CAST(REPLACE(P.공시가격, ',', '') AS BIGINT)) AS max_price
         FROM read_csv_auto('{pub_price_file}', all_varchar=true) AS P
