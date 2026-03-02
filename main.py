@@ -307,24 +307,23 @@ col_area_1, col_area_2 = st.sidebar.columns(2)
 col_area_3, col_area_4 = st.sidebar.columns(2)
 col_area_5, col_area_6 = st.sidebar.columns(2)
 
-if col_area_1.button("전체", use_container_width=True):
+if col_area_1.button("전체", width="stretch"):
     st.session_state.area_range = (min_a, max_a)
-if col_area_2.button("초소형 (~40㎡)", use_container_width=True):
+if col_area_2.button("초소형 (~40㎡)", width="stretch"):
     st.session_state.area_range = (min_a, 40)
-if col_area_3.button("소형 (40~60㎡)", use_container_width=True):
+if col_area_3.button("소형 (40~60㎡)", width="stretch"):
     st.session_state.area_range = (40, 60)
-if col_area_4.button("중소형 (60~85㎡)", use_container_width=True):
+if col_area_4.button("중소형 (60~85㎡)", width="stretch"):
     st.session_state.area_range = (60, 85)
-if col_area_5.button("중대형 (85~135㎡)", use_container_width=True):
+if col_area_5.button("중대형 (85~135㎡)", width="stretch"):
     st.session_state.area_range = (85, 135)
-if col_area_6.button("대형 (135㎡~)", use_container_width=True):
+if col_area_6.button("대형 (135㎡~)", width="stretch"):
     st.session_state.area_range = (135, max_a)
 
 area_range = st.sidebar.slider(
     "전용면적 직접 선택 (㎡)",
     min_a,
     max_a,
-    st.session_state.area_range,
     key="area_range"
 )
 
@@ -341,18 +340,17 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("#### 공시가격 빠른 선택")
 col_price_1, col_price_2, col_price_3 = st.sidebar.columns(3)
 
-if col_price_1.button("전체", key="btn_p_all", use_container_width=True):
+if col_price_1.button("전체", key="btn_p_all", width="stretch"):
     st.session_state.price_range = (min_p, max_p)
-if col_price_2.button("6억 이하", key="btn_p_6", help="장기주택저당차입금 이자상환액 소득공제 기준", use_container_width=True):
+if col_price_2.button("6억 이하", key="btn_p_6", help="장기주택저당차입금 이자상환액 소득공제 기준", width="stretch"):
     st.session_state.price_range = (min_p, min(6.0, max_p))
-if col_price_3.button("12억 이하", key="btn_p_12", help="종합부동산세 비과세 기준", use_container_width=True):
+if col_price_3.button("12억 이하", key="btn_p_12", help="종합부동산세 비과세 기준", width="stretch"):
     st.session_state.price_range = (min_p, min(12.0, max_p))
 
 price_range = st.sidebar.slider(
     "공시가격 직접 선택 (억원)",
     float(min_p),
     float(max_p),
-    st.session_state.price_range,
     key="price_range",
     step=0.1
 )
@@ -613,7 +611,7 @@ with tab1:
                 height=420
             )
 
-            st.plotly_chart(fig_radar, use_container_width=True)
+            st.plotly_chart(fig_radar, width="stretch")
 
             st.markdown("#### 📊 백분위 상세")
             total_parking = int(selected['kaptdPcnt'] + selected['kaptdPcntu'])
@@ -630,12 +628,12 @@ with tab1:
                 ],
                 '백분위': [f"{v:.1f}%" for v in values]
             }
-            st.dataframe(pd.DataFrame(pct_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(pct_data), width="stretch", hide_index=True)
             with st.expander("📄 원본 데이터 보기"):
                 st.markdown("선택된 아파트의 원본 데이터 상세 정보입니다.")
                 # Transpose the data to make it easier to read column by column
                 selected_df = selected.to_frame(name='값').reset_index().rename(columns={'index': '항목'})
-                st.dataframe(selected_df, use_container_width=True, hide_index=True)
+                st.dataframe(selected_df, width="stretch", hide_index=True)
 
     else:
         st.info("아파트 단지명을 입력하면 백분위 레이더 차트가 표시됩니다.")
@@ -712,7 +710,7 @@ with tab2:
             hovermode="x unified",
             margin=dict(t=30, b=0, l=0, r=0)
         )
-        st.plotly_chart(fig_year, use_container_width=True)
+        st.plotly_chart(fig_year, width="stretch")
     else:
         st.info("준공 연도 데이터가 없습니다.")
 
@@ -788,7 +786,7 @@ with tab3:
         # Add labels on top of bars
         fig_units.update_traces(texttemplate='%{y}', textposition='outside')
         
-        st.plotly_chart(fig_units, use_container_width=True)
+        st.plotly_chart(fig_units, width="stretch")
     else:
         st.info("세대수 데이터를 표시할 수 없습니다.")
 
@@ -798,7 +796,7 @@ with tab4:
     cols_to_show = ['kaptName', 'built_year', 'kaptdaCnt', 'codeAptNm', 'district', 'kaptAddr', 'kaptBcompany']
     available_cols = [c for c in cols_to_show if c in filtered_df.columns]
     
-    st.dataframe(filtered_df[available_cols], use_container_width=True, hide_index=True)
+    st.dataframe(filtered_df[available_cols], width="stretch", hide_index=True)
 
 st.markdown("""
 ---
