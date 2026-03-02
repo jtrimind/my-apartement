@@ -370,6 +370,10 @@ else:
 
 selected_subway_lines = st.sidebar.multiselect("지하철 호선", sorted_subway_lines, default=None)
 
+st.sidebar.markdown("---")
+school_options = ["전체", "도보 0m (완전 초품아)", "도보 250m 이내", "도보 500m 이내", "도보 750m 이내", "도보 1km 이내"]
+selected_school_dist = st.sidebar.selectbox("초등학교 도보 거리 (초품아)", school_options, index=0)
+
 # Filter data
 filtered_df = df.copy()
 if selected_cities:
@@ -453,6 +457,17 @@ if selected_subway_lines and 'subwayLine' in df.columns:
         return any(line in apartment_lines for line in selected_lines)
     
     filtered_df = filtered_df[filtered_df['subwayLine'].apply(lambda x: has_selected_subway(x, selected_subway_lines))]
+
+if selected_school_dist != "전체" and 'schul_dstnc' in df.columns:
+    dist_map = {
+        "도보 0m (완전 초품아)": 0,
+        "도보 250m 이내": 250,
+        "도보 500m 이내": 500,
+        "도보 750m 이내": 750,
+        "도보 1km 이내": 1000
+    }
+    max_dist = dist_map.get(selected_school_dist, 10000)
+    filtered_df = filtered_df[pd.to_numeric(filtered_df['schul_dstnc'], errors='coerce') <= max_dist]
 
 # Buy me a coffee button (Sidebar Footer)
 st.sidebar.markdown("---")
