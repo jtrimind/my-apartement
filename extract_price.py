@@ -11,14 +11,14 @@ def process_price_data():
     COPY (
         SELECT 
             A.kaptCode,
-            P.동명,
-            P.호명,
-            P.전용면적,
-            P.공시가격
+            CAST(P.전용면적 AS DOUBLE) AS 전용면적,
+            MIN(TRY_CAST(REPLACE(P.공시가격, ',', '') AS BIGINT)) AS min_price,
+            MAX(TRY_CAST(REPLACE(P.공시가격, ',', '') AS BIGINT)) AS max_price
         FROM read_csv_auto('{pub_price_file}', all_varchar=true) AS P
         INNER JOIN read_csv_auto('{apt_basic_file}', all_varchar=true) AS A
             ON P.법정동코드 = A.bjdCode
            AND REPLACE(P.도로명주소, ' ', '') = REPLACE(A.doroJuso, ' ', '')
+        GROUP BY A.kaptCode, CAST(P.전용면적 AS DOUBLE)
     ) TO '{output_csv}' (HEADER, DELIMITER ',');
     """
 

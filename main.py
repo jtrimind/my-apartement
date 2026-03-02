@@ -54,13 +54,15 @@ st.markdown("""
 def load_data():
     # Load basic info
     try:
-        df_basic = pd.read_csv('apt_basic.csv')
+        basic_cols = ['kaptCode', 'kaptName', 'kaptAddr', 'kaptUsedate', 'kaptdaCnt', 'kaptTarea', 'kaptTopFloor', 'codeAptNm', 'codeHeatNm', 'kaptBcompany']
+        df_basic = pd.read_csv('apt_basic.csv', usecols=lambda c: c in basic_cols)
     except Exception:
         df_basic = pd.DataFrame(columns=['kaptCode'])
         
     # Load detail info
     try:
-        df_detail = pd.read_csv('apt_detail.csv', low_memory=False)
+        detail_cols = ['kaptCode', 'kaptName', 'kaptdPcnt', 'kaptdPcntu', 'subwayLine', 'subwayStation', 'kaptdWtimesub']
+        df_detail = pd.read_csv('apt_detail.csv', usecols=lambda c: c in detail_cols, low_memory=False)
     except Exception:
         df_detail = pd.DataFrame(columns=['kaptCode'])
         
@@ -215,9 +217,10 @@ def load_data():
 
     # Load area and price data
     try:
-        df_p = pd.read_csv('apt_price_mapped.csv', usecols=['kaptCode', '전용면적', '공시가격'])
+        df_p = pd.read_csv('apt_price_mapped.csv', usecols=['kaptCode', '전용면적', 'min_price', 'max_price'])
         df_p['전용면적'] = pd.to_numeric(df_p['전용면적'], errors='coerce')
-        df_p['공시가격'] = pd.to_numeric(df_p['공시가격'], errors='coerce')
+        df_p['min_price'] = pd.to_numeric(df_p['min_price'], errors='coerce')
+        df_p['max_price'] = pd.to_numeric(df_p['max_price'], errors='coerce')
         
         df_area_cln = df_p.dropna(subset=['전용면적'])
         agg_area = df_area_cln.groupby('kaptCode')['전용면적'].agg(['unique', 'min', 'max']).reset_index()
@@ -225,16 +228,15 @@ def load_data():
         agg_area['areas'] = agg_area['areas'].apply(lambda x: sorted(list(x)))
         df = pd.merge(df, agg_area, on='kaptCode', how='left')
 
-        df_price_cln = df_p.dropna(subset=['공시가격'])
-        agg_price = df_price_cln.groupby('kaptCode')['공시가격'].agg(['min', 'max']).reset_index()
-        agg_price['min_price'] = agg_price['min'] / 100000000.0
-        agg_price['max_price'] = agg_price['max'] / 100000000.0
-        agg_price.drop(columns=['min', 'max'], inplace=True)
+        df_price_cln = df_p.dropna(subset=['min_price', 'max_price'])
+        agg_price = df_price_cln.groupby('kaptCode').agg({'min_price': 'min', 'max_price': 'max'}).reset_index()
+        agg_price['min_price'] = agg_price['min_price'] / 100000000.0
+        agg_price['max_price'] = agg_price['max_price'] / 100000000.0
         df = pd.merge(df, agg_price, on='kaptCode', how='left')
         
         # area-price pairs for linked filtering
-        df_ap_cln = df_p.dropna(subset=['전용면적', '공시가격']).copy()
-        df_ap_cln['price_억원'] = df_ap_cln['공시가격'] / 100000000.0
+        df_ap_cln = df_p.dropna(subset=['전용면적', 'max_price']).copy()
+        df_ap_cln['price_억원'] = df_ap_cln['max_price'] / 100000000.0
         agg_ap = df_ap_cln.groupby('kaptCode').apply(
             lambda x: list(zip(x['전용면적'], x['price_억원'])),
             include_groups=False
